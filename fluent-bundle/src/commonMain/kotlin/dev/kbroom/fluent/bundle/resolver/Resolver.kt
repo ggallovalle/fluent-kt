@@ -109,6 +109,9 @@ class PatternResolver {
                         sb.append('\u2068') // FSI
                     }
                     val value = resolveExpression(element.expression, scope)
+                    if (element.expression.toString().contains("foo") || element.expression.toString().contains("attr")) {
+                        println("DEBUG: expr=${element.expression}, value=$value")
+                    }
                     // Handle Pattern values - resolve them recursively
                     val resolved = when (value) {
                         is FluentValue.Pattern -> resolve(value.pattern, scope)
@@ -150,13 +153,7 @@ class PatternResolver {
                 resolveSelect(expression.selector, expression.variants, scope)
             }
             is Expression.Inline -> {
-                val value = resolveInlineExpression(expression.expression, scope)
-                // If the value is a Pattern, resolve it now
-                if (value is FluentValue.Pattern) {
-                    FluentValue.Str(resolve(value.pattern, scope))
-                } else {
-                    value
-                }
+                resolveInlineExpression(expression.expression, scope)
             }
         }
     }

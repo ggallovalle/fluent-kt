@@ -281,6 +281,7 @@ class FluentParser {
         
         // Check for select expression variants: [key], *default, or -> syntax
         // Note: -> is checked here AND in parseVariants for standalone select
+        skipWhitespace()
         if (peek() == '[' || peek() == '*' || (peek() == '-' && peekNext() == '>')) {
             // It's a select expression - parse variants
             val variants = parseVariants()
@@ -318,6 +319,9 @@ class FluentParser {
             val value = parsePattern()
             
             variants.add(Variant(key, value, default))
+            
+            // Skip whitespace and newlines between variants
+            skipWhitespace()
         }
         
         return variants
