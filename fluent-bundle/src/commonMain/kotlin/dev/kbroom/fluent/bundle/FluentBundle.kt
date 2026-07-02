@@ -180,9 +180,9 @@ class FluentBundle(
             FluentValue.Number(FluentNumber(sum))
         }
         
-        // IDENTITY function - returns first argument
+        // IDENTITY function - returns first argument, or name as fallback
         addFunction("IDENTITY") { args, _ ->
-            args.firstOrNull() ?: FluentValue.None
+            args.firstOrNull() ?: FluentValue.Str("IDENTITY()")
         }
     }
     
