@@ -271,9 +271,9 @@ class PatternResolver {
         val term = scope.bundle.getTerm(id)
         if (term != null) {
             val value = if (attribute != null) {
-                term.getAttributeValue(attribute) ?: return FluentValue.Str("{-$id.$attribute}")
+                term.getAttribute(attribute)?.value ?: return FluentValue.Str("{-$id.$attribute}")
             } else {
-                term.value
+                term.value()
             }
             scope.untrackPlaceable(trackId)
             return FluentValue.Str(resolve(value, scope))
@@ -286,7 +286,7 @@ class PatternResolver {
         // Transform None to term reference format
         if (result is FluentValue.None) {
             scope.errors.add(dev.kbroom.fluent.bundle.FluentError.ResolverError(
-                ResolverError.Reference(ResolverError.ReferenceKind.TERM, id)
+                ResolverError.Reference(ReferenceKind.TERM, id)
             ))
             scope.untrackPlaceable(trackId)
             return FluentValue.Str("{-$id}")
