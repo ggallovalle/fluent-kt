@@ -179,6 +179,9 @@ class TestScope(private val levels: List<ScopeLevel> = emptyList()) {
         val langIds = locales.map { LanguageIdentifier.parse(it) }
         val bundle = FluentBundle(langIds)
         
+        // Add built-in functions (NUMBER, PLURAL, CONCAT)
+        bundle.addBuiltins()
+        
         // Add resources
         for (source in extraResources) {
             val resource = FluentResource.tryNew(source)

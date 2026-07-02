@@ -3,11 +3,11 @@ package dev.kbroom.fluent.bundle
 import dev.kbroom.fluent.syntax.*
 import dev.kbroom.fluent.bundle.resolver.PatternResolver
 import dev.kbroom.fluent.bundle.resolver.Scope
+import dev.kbroom.fluent.bundle.types.FluentNumber
 import dev.kbroom.fluent.bundle.types.FluentValue
 import dev.kbroom.fluent.intl.LanguageIdentifier
 import dev.kbroom.fluent.intl.IntlLangMemoizer
 import dev.kbroom.fluent.bundle.types.getPluralCategory
-
 /**
  * FluentBundle is the main runtime for localization.
  */
@@ -151,6 +151,33 @@ class FluentBundle(
             } else {
                 FluentValue.Str("other")
             }
+        }
+        
+        // CONCAT function - concatenates string arguments
+        addFunction("CONCAT") { args, _ ->
+            val sb = StringBuilder()
+            for (arg in args) {
+                sb.append(arg.asString())
+            }
+            FluentValue.Str(sb.toString())
+        }
+        
+        // SUM function - adds numbers
+        addFunction("SUM") { args, _ ->
+            var sum = 0.0
+            for (arg in args) {
+                sum += when (arg) {
+                    is FluentValue.Number -> arg.value.value
+                    is FluentValue.Str -> arg.value.toDoubleOrNull() ?: 0.0
+                    else -> 0.0
+                }
+            }
+            FluentValue.Number(FluentNumber(sum))
+        }
+        
+        // IDENTITY function - returns first argument
+        addFunction("IDENTITY") { args, _ ->
+            args.firstOrNull() ?: FluentValue.None
         }
     }
     
