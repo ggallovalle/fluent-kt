@@ -28,6 +28,12 @@ sealed class FluentValue {
     data class Custom(val value: FluentType) : FluentValue()
     
     /**
+     * A pattern value (returned for attribute references to allow proper select handling).
+     */
+    @Serializable
+    data class Pattern(val pattern: dev.kbroom.fluent.syntax.Pattern) : FluentValue()
+    
+    /**
      * Represents no value (null equivalent).
      */
     @Serializable
@@ -55,6 +61,7 @@ sealed class FluentValue {
             }
         }
         is Custom -> value.asString()
+        is Pattern -> throw IllegalStateException("Pattern should be resolved before asString()")
         is None -> ""
         is Error -> "{$message}"
     }
@@ -66,6 +73,7 @@ sealed class FluentValue {
         is Str -> value
         is Number -> value.value
         is Custom -> value
+        is Pattern -> pattern
         is None -> null
         is Error -> message
     }

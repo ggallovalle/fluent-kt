@@ -45,6 +45,12 @@ class FluentTerm(private val term: Entry.Term) {
     fun getAttribute(name: String): Attribute? {
         return term.attributes.find { it.id.name == name }
     }
+    /**
+     * Get the value Pattern of an attribute by name.
+     */
+    fun getAttributeValue(name: String): Pattern? {
+        return getAttribute(name)?.value
+    }
     
     fun comment(): Entry.Comment? = term.comment
 }

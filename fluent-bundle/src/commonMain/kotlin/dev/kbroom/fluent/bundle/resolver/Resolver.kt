@@ -109,7 +109,12 @@ class PatternResolver {
                         sb.append('\u2068') // FSI
                     }
                     val value = resolveExpression(element.expression, scope)
-                    sb.append(value.asString())
+                    // Handle Pattern values - resolve them recursively
+                    val resolved = when (value) {
+                        is FluentValue.Pattern -> resolve(value.pattern, scope)
+                        else -> value.asString()
+                    }
+                    sb.append(resolved)
                     if (needsIsolation) {
                         sb.append('\u2069') // PDI
                     }
@@ -227,9 +232,11 @@ class PatternResolver {
         }
         
         val result = if (attribute != null) {
-            val attr = message.getAttribute(attribute)
-            if (attr != null) {
-                FluentValue.Str(resolve(attr.value, scope))
+            val attrValue = message.getAttributeValue(attribute)
+            if (attrValue != null) {
+                // Untrack before resolving attribute value to allow self-references
+                scope.untrackPlaceable(id)
+                FluentValue.Str(resolve(attrValue, scope))
             } else {
                 scope.errors.add(dev.kbroom.fluent.bundle.FluentError.ResolverError(
                     ResolverError.Reference(ReferenceKind.MESSAGE, "$id.$attribute")
@@ -268,15 +275,23 @@ class PatternResolver {
             return FluentValue.Str("{-$id}")
         }
         // Look up term in bundle - if found, resolve it
-        val term = scope.bundle.getTerm(id)
         if (term != null) {
-            val value = if (attribute != null) {
-                term.getAttribute(attribute)?.value ?: return FluentValue.Str("{-$id.$attribute}")
+            val attrValue = if (attribute != null) {
+                term.getAttributeValue(attribute)
             } else {
-                term.value()
+                null
             }
+            if (attribute != null && attrValue == null) {
+                return FluentValue.Str("{-$id.$attribute}")
+            }
+            // Return pattern for attribute values to allow proper select handling
+            if (attribute != null) {
+                scope.untrackPlaceable(trackId)
+                return FluentValue.Pattern(attrValue!!)
+            }
+            // Untrack before resolving to allow self-references
             scope.untrackPlaceable(trackId)
-            return FluentValue.Str(resolve(value, scope))
+            return FluentValue.Str(resolve(term.value(), scope))
         }
         
         // Term not found - try as message reference
