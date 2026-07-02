@@ -17,6 +17,13 @@ class FluentMessage(private val message: Entry.Message) {
         return message.attributes.find { it.id.name == name }
     }
     
+    /**
+     * Get the value Pattern of an attribute by name.
+     */
+    fun getAttributeValue(name: String): Pattern? {
+        return getAttribute(name)?.value
+    }
+    
     fun comment(): Entry.Comment? = message.comment
     
     fun hasValue(): Boolean = message.value != null
