@@ -181,42 +181,52 @@ class FluentParser {
         return Entry.Term(Identifier(id), value, attributes, comment)
     }
     
-    private fun parsePattern(): Pattern {
-        val elements = mutableListOf<PatternElement>()
-        
-        while (pos < source.length && peek() != '\n') {
-            when {
-                peek() == '{' -> {
-                    pos++ // skip {
-                    skipWhitespace()
-                    if (peek() == '}') {
-                        pos++ // skip }
-                        continue
-                    }
-                    val expr = parseExpression()
-                    skipWhitespace()
-                    if (peek() == '}') {
-                        pos++ // skip }
-                    }
-                    elements.add(PatternElement.Placeable(expr))
+        private fun parsePattern(): Pattern {
+            val elements = mutableListOf<PatternElement>()
+            
+            // Track if we're at the start of a line (no elements yet parsed)
+            var atStartOfContent = elements.isEmpty()
+            
+            while (pos < source.length && peek() != '\n') {
+                // If we're at the start of content and see '.', this is an attribute marker - stop
+                if (atStartOfContent && peek() == '.') {
+                    break
                 }
-                else -> {
-                    val textStart = pos
-                    while (pos < source.length && peek() != '{' && peek() != '\n') {
-                        pos++
+                
+                when {
+                    peek() == '{' -> {
+                        pos++ // skip {
+                        skipWhitespace()
+                        if (peek() == '}') {
+                            pos++ // skip }
+                            continue
+                        }
+                        val expr = parseExpression()
+                        skipWhitespace()
+                        if (peek() == '}') {
+                            pos++ // skip }
+                        }
+                        elements.add(PatternElement.Placeable(expr))
+                        atStartOfContent = false
                     }
-                    val text = source.substring(textStart, pos)
-                    if (text.isNotEmpty()) {
-                        elements.add(PatternElement.TextElement(text))
+                    else -> {
+                        val textStart = pos
+                        while (pos < source.length && peek() != '{' && peek() != '\n') {
+                            pos++
+                        }
+                        val text = source.substring(textStart, pos)
+                        if (text.isNotEmpty()) {
+                            elements.add(PatternElement.TextElement(text))
+                            atStartOfContent = false
+                        }
                     }
                 }
             }
+            
+            // Dedent multiline values
+            val dedented = dedentPattern(elements)
+            return Pattern(dedented)
         }
-        
-        // Dedent multiline values
-        val dedented = dedentPattern(elements)
-        return Pattern(dedented)
-    }
     
     private fun dedentPattern(elements: List<PatternElement>): List<PatternElement> {
         if (elements.isEmpty()) return elements

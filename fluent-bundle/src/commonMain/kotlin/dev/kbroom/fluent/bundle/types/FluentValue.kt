@@ -46,8 +46,13 @@ sealed class FluentValue {
         is Str -> value
         is Number -> {
             val v = value.value
-            // Format integer values without decimal point
-            if (v == v.toLong().toDouble()) v.toLong().toString() else v.toString()
+            // Format integer values without decimal point if whole number
+            val intValue = v.toLong()
+            if (v == intValue.toDouble() && intValue.toDouble() == v) {
+                intValue.toString()
+            } else {
+                v.toString()
+            }
         }
         is Custom -> value.asString()
         is None -> ""
