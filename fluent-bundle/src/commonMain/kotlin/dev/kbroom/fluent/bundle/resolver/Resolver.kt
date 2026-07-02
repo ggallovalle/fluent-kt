@@ -109,19 +109,12 @@ class PatternResolver {
                         sb.append('\u2068') // FSI
                     }
                     val value = resolveExpression(element.expression, scope)
-                    println("DEBUG resolve Placeable: expression=${element.expression}, value=$value")
                     // Handle Pattern values - resolve them recursively
                     val resolved = when (value) {
-                        is FluentValue.Pattern -> {
-                            println("DEBUG: Handling Pattern variant, pattern=${value.pattern}")
-                            resolve(value.pattern, scope)
-                        }
-                        else -> {
-                            println("DEBUG: Not a Pattern, calling asString()")
-                            value.asString()
-                        }
+                        is FluentValue.Pattern -> resolve(value.pattern, scope)
+                        else -> value.asString()
                     }
-                    println("DEBUG: resolved=$resolved")
+                    sb.append(resolved)
                     if (needsIsolation) {
                         sb.append('\u2069') // PDI
                     }
