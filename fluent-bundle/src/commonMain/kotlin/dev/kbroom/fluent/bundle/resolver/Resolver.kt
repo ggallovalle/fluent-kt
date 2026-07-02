@@ -109,12 +109,19 @@ class PatternResolver {
                         sb.append('\u2068') // FSI
                     }
                     val value = resolveExpression(element.expression, scope)
+                    println("DEBUG resolve Placeable: expression=${element.expression}, value=$value")
                     // Handle Pattern values - resolve them recursively
                     val resolved = when (value) {
-                        is FluentValue.Pattern -> resolve(value.pattern, scope)
-                        else -> value.asString()
+                        is FluentValue.Pattern -> {
+                            println("DEBUG: Handling Pattern variant, pattern=${value.pattern}")
+                            resolve(value.pattern, scope)
+                        }
+                        else -> {
+                            println("DEBUG: Not a Pattern, calling asString()")
+                            value.asString()
+                        }
                     }
-                    sb.append(resolved)
+                    println("DEBUG: resolved=$resolved")
                     if (needsIsolation) {
                         sb.append('\u2069') // PDI
                     }
@@ -150,7 +157,13 @@ class PatternResolver {
                 resolveSelect(expression.selector, expression.variants, scope)
             }
             is Expression.Inline -> {
-                resolveInlineExpression(expression.expression, scope)
+                val value = resolveInlineExpression(expression.expression, scope)
+                // If the value is a Pattern, resolve it now
+                if (value is FluentValue.Pattern) {
+                    FluentValue.Str(resolve(value.pattern, scope))
+                } else {
+                    value
+                }
             }
         }
     }
@@ -234,9 +247,10 @@ class PatternResolver {
         val result = if (attribute != null) {
             val attrValue = message.getAttributeValue(attribute)
             if (attrValue != null) {
-                // Untrack before resolving attribute value to allow self-references
+                // Untrack before resolving to allow self-references
                 scope.untrackPlaceable(id)
-                FluentValue.Str(resolve(attrValue, scope))
+                // Return Pattern to allow proper select expression handling
+                FluentValue.Pattern(attrValue)
             } else {
                 scope.errors.add(dev.kbroom.fluent.bundle.FluentError.ResolverError(
                     ResolverError.Reference(ReferenceKind.MESSAGE, "$id.$attribute")
@@ -275,6 +289,7 @@ class PatternResolver {
             return FluentValue.Str("{-$id}")
         }
         // Look up term in bundle - if found, resolve it
+        val term = scope.bundle.getTerm(id)
         if (term != null) {
             val attrValue = if (attribute != null) {
                 term.getAttributeValue(attribute)
