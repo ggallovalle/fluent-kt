@@ -76,7 +76,9 @@ class FluentBundle(
     }
     
     fun getTerm(id: String): FluentTerm? {
-        val entry = entries[id] ?: return null
+        // Strip leading dash if present (term references use -term)
+        val termId = if (id.startsWith("-")) id.substring(1) else id
+        val entry = entries[termId] ?: return null
         return when (entry) {
             is Entry.Term -> FluentTerm(entry)
             else -> null
