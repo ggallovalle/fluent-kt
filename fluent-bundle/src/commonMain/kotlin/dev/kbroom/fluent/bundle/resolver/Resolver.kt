@@ -267,14 +267,26 @@ class PatternResolver {
         if (!scope.trackPlaceable(trackId)) {
             return FluentValue.Str("{-$id}")
         }
+        // Look up term in bundle - if found, resolve it
+        val term = scope.bundle.getTerm(id)
+        if (term != null) {
+            val value = if (attribute != null) {
+                term.getAttributeValue(attribute) ?: return FluentValue.Str("{-$id.$attribute}")
+            } else {
+                term.value
+            }
+            scope.untrackPlaceable(trackId)
+            return FluentValue.Str(resolve(value, scope))
+        }
         
+        // Term not found - try as message reference
         // For now, simplified - full implementation would handle term arguments
         val result = resolveMessageReference(id, attribute, scope)
         
         // Transform None to term reference format
         if (result is FluentValue.None) {
             scope.errors.add(dev.kbroom.fluent.bundle.FluentError.ResolverError(
-                ResolverError.Reference(ReferenceKind.TERM, id)
+                ResolverError.Reference(ResolverError.ReferenceKind.TERM, id)
             ))
             scope.untrackPlaceable(trackId)
             return FluentValue.Str("{-$id}")
