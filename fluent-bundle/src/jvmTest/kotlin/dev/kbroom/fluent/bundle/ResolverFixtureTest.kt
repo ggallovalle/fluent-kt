@@ -2,6 +2,7 @@ package dev.kbroom.fluent.bundle
 
 import dev.kbroom.fluent.testing.bundle.*
 import dev.kbroom.fluent.intl.LanguageIdentifier
+import dev.kbroom.fluent.bundle.FluentArgs
 import kotlin.test.Test
 import kotlin.test.fail
 
@@ -100,19 +101,27 @@ class ResolverFixtureTest {
             val msg = bundle.getMessage(assertion.id) 
                 ?: throw RuntimeException("Message not found: ${assertion.id}")
             
+            // Build args from assertion (args are already strings after YAML parsing)
+            val args = assertion.args?.let { argMap ->
+                val fluentArgs = FluentArgs()
+                for ((key, value) in argMap) {
+                    fluentArgs.set(key, value)
+                }
+                fluentArgs
+            }
             val attr = assertion.attribute
             val value = if (attr != null) {
                 val attribute = msg.getAttribute(attr)
                 if (attribute == null) {
                     throw RuntimeException("Attribute not found: $attr")
                 }
-                formatPattern(attribute.value, bundle)
+                bundle.formatPattern(attribute.value, args)
             } else {
                 val v = msg.value()
                 if (v == null) {
                     throw RuntimeException("Message has no value")
                 }
-                formatPattern(v, bundle)
+                bundle.formatPattern(v, args)
             }
             
             if (value != assertion.value) {

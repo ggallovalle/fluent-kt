@@ -268,8 +268,11 @@ class FluentParser {
         val inlineExpr = parseInlineExpression()
         
         skipWhitespace()
-        if (peek() == '[' || peek() == '*') {
-            // It's a select expression
+        
+        // Check for select expression variants: [key], *default, or -> syntax
+        // Note: -> is checked here AND in parseVariants for standalone select
+        if (peek() == '[' || peek() == '*' || (peek() == '-' && peekNext() == '>')) {
+            // It's a select expression - parse variants
             val variants = parseVariants()
             return Expression.Select(inlineExpr, variants)
         }
@@ -279,6 +282,12 @@ class FluentParser {
     
     private fun parseVariants(): List<Variant> {
         val variants = mutableListOf<Variant>()
+        
+        // Handle -> syntax: -> [key] value or -> *default value
+        if (peek() == '-' && peekNext() == '>') {
+            pos += 2  // skip ->
+            skipWhitespace()
+        }
         
         while (peek() == '[' || peek() == '*') {
             val default = (peek() == '*')
@@ -521,6 +530,7 @@ class FluentParser {
     
     private fun peek(): Char = source.getOrNull(pos) ?: '\u0000'
     
+    private fun peekNext(): Char = source.getOrNull(pos + 1) ?: '\u0000'
     private fun isIdentifierStart(c: Char): Boolean = c in 'a'..'z' || c in 'A'..'Z' || c == '_'
     
     private fun isIdentifierPart(c: Char): Boolean = c in 'a'..'z' || c in 'A'..'Z' || c in '0'..'9' || c == '_' || c == '-'

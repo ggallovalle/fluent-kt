@@ -44,7 +44,11 @@ sealed class FluentValue {
      */
     fun asString(): String = when (this) {
         is Str -> value
-        is Number -> value.value.toString()
+        is Number -> {
+            val v = value.value
+            // Format integer values without decimal point
+            if (v == v.toLong().toDouble()) v.toLong().toString() else v.toString()
+        }
         is Custom -> value.asString()
         is None -> ""
         is Error -> "{$message}"

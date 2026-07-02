@@ -89,21 +89,41 @@ data class TestAssert(
     val attribute: String? = null,
     val bundle: String? = null,
     val missing: Boolean? = null,
-    val args: Map<String, TestArgValue>? = null,
+    val args: Map<String, String>? = null,
     val errors: List<TestError>? = null
 )
 
 /**
- * Argument value - simplified as string or number map entry.
+ * Argument value - can be a plain scalar (string/number) or object.
+ * YAML: `num: 3` becomes "3", `arg: foo` becomes "foo"
  */
 @Serializable
-data class TestArgValue(
-    val value: String? = null,
-    val numValue: Double? = null
-) {
+sealed class TestArgValue {
+    @Serializable
+    data class StringValue(val value: String) : TestArgValue()
+    
+    @Serializable
+    data class NumberValue(val value: Double) : TestArgValue()
+    
     companion object {
-        fun fromString(v: String) = TestArgValue(value = v)
-        fun fromNumber(v: Double) = TestArgValue(numValue = v)
+        fun fromString(v: String) = StringValue(v)
+        fun fromNumber(v: Double) = NumberValue(v)
+        
+        fun fromAny(v: Any?): TestArgValue = when (v) {
+            is String -> StringValue(v)
+            is Number -> NumberValue(v.toDouble())
+            is Map<*, *> -> {
+                // Handle object form {value: "..."} or {numValue: ...}
+                val strVal = v["value"] as? String
+                val numVal = v["numValue"] as? Number
+                when {
+                    strVal != null -> StringValue(strVal)
+                    numVal != null -> NumberValue(numVal.toDouble())
+                    else -> StringValue(v.toString())
+                }
+            }
+            else -> StringValue(v?.toString() ?: "")
+        }
     }
 }
 
