@@ -94,18 +94,46 @@ class PatternResolver {
      */
     fun resolve(pattern: Pattern, scope: Scope): String {
         val sb = StringBuilder()
+        val useIsolating = scope.bundle.useIsolating
+        val len = pattern.elements.size
+        
         for (element in pattern.elements) {
             when (element) {
                 is PatternElement.TextElement -> {
                     sb.append(element.value)
                 }
                 is PatternElement.Placeable -> {
+                    // Check if we need isolation marks
+                    val needsIsolation = useIsolating && len > 1 && !isMessageOrTermOrString(element.expression)
+                    if (needsIsolation) {
+                        sb.append('\u2068') // FSI
+                    }
                     val value = resolveExpression(element.expression, scope)
                     sb.append(value.asString())
+                    if (needsIsolation) {
+                        sb.append('\u2069') // PDI
+                    }
                 }
             }
         }
         return sb.toString()
+    }
+    
+    /**
+     * Check if an expression doesn't need isolation marks.
+     */
+    private fun isMessageOrTermOrString(expression: Expression): Boolean {
+        return when (expression) {
+            is Expression.Inline -> {
+                when (expression.expression) {
+                    is InlineExpression.MessageReference -> true
+                    is InlineExpression.TermReference -> true
+                    is InlineExpression.StringLiteral -> true
+                    else -> false
+                }
+            }
+            else -> false
+        }
     }
     
     /**

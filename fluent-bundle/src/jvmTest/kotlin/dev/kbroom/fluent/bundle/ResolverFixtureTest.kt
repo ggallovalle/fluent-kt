@@ -197,9 +197,11 @@ class TestScope(private val levels: List<ScopeLevel> = emptyList()) {
             ?: defaults?.bundle?.locales 
             ?: listOf("en")
         
-        val langIds = locales.map { LanguageIdentifier.parse(it) }
-        val bundle = FluentBundle(langIds)
+        // Determine useIsolating
+        val useIsolating = config?.useIsolating ?: defaults?.bundle?.useIsolating ?: true
         
+        val langIds = locales.map { LanguageIdentifier.parse(it) }
+        val bundle = FluentBundle(langIds, useIsolating)
         // Add built-in functions (NUMBER, PLURAL, CONCAT)
         bundle.addBuiltins()
         

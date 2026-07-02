@@ -13,7 +13,7 @@ import dev.kbroom.fluent.bundle.types.getPluralCategory
  */
 class FluentBundle(
     val locales: List<LanguageIdentifier>,
-    private val useIsolating: Boolean = true,
+    val useIsolating: Boolean = true,
 ) {
     private val entries: MutableMap<String, Entry> = linkedMapOf()
     private val functions: MutableMap<String, (List<FluentValue>, FluentArgs) -> FluentValue> = mutableMapOf()
