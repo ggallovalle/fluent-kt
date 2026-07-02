@@ -9,3 +9,8 @@ plugins {
 tasks.register("clean", Delete::class) {
     delete(rootProject.layout.buildDirectory)
 }
+subprojects {
+    tasks.withType<Test>().configureEach {
+        timeout.set(java.time.Duration.ofSeconds(10))
+    }
+}

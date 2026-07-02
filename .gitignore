@@ -1,0 +1,35 @@
+# Gradle
+.gradle/
+build/
+gradle/wrapper/*.jar
+!gradle/wrapper/gradle-wrapper.properties
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Kotlin
+*.class
+*.jar
+*.klib
+*.kotlin_module
+
+# Native
+*.knb
+*.knd
+*.knf
+*.knm
+*.knt
+
+# Test results
+*/build/test-results/
+*/build/reports/
+
+# Caches
+kotlin-dsl-plugin-entries/
+caches-jvm/
