@@ -19,6 +19,8 @@ kotlin {
         val commonTest by getting {
             dependencies {
                 implementation(kotlin("test"))
+                implementation(project(":fluent-testing"))
+                implementation("com.charleskorn.kaml:kaml:0.70.0")
             }
         }
     }

@@ -17,7 +17,15 @@ kotlin {
         val commonTest by getting {
             dependencies {
                 implementation(kotlin("test"))
+                implementation(project(":fluent-testing"))
             }
+        }
+        val jvmTest by getting {
+            dependsOn(commonTest)
+            dependencies {
+                implementation(kotlin("test"))
+            }
+            resources.srcDirs("src/commonTest/resources")
         }
     }
 }

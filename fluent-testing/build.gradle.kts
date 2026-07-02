@@ -12,11 +12,17 @@ kotlin {
             dependencies {
                 implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
                 implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.8.0")
+                implementation(project(":fluent-syntax"))
+                implementation(project(":fluent-bundle"))
+                implementation(project(":fluent-fallback"))
+                implementation(project(":fluent-resmgr"))
+                implementation("com.charleskorn.kaml:kaml:0.70.0")
             }
         }
         val commonTest by getting {
             dependencies {
                 implementation(kotlin("test"))
+                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
             }
         }
     }
