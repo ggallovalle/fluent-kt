@@ -292,7 +292,7 @@ class PatternResolver {
         scope.errors.add(dev.kbroom.fluent.bundle.FluentError.ResolverError(
             ResolverError.Reference(ReferenceKind.FUNCTION, name)
         ))
-        return FluentValue.Error("Unknown function: $name")
+        return FluentValue.Error("${name}()")
     }
     
     /**
