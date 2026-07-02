@@ -365,6 +365,12 @@ class PatternResolver {
             is FluentValue.Str -> selectorValue.value
             is FluentValue.Number -> selectorValue.value.value.toInt().toString()
             is FluentValue.None -> null  // Use default variant
+            is FluentValue.Pattern -> selectorValue.pattern.elements.firstOrNull()?.let {
+                when (it) {
+                    is PatternElement.TextElement -> it.value
+                    else -> selectorValue.asString()
+                }
+            } ?: selectorValue.asString()
             else -> selectorValue.asString()
         }
         
