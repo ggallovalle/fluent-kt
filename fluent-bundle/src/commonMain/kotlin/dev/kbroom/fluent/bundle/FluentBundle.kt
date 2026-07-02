@@ -125,10 +125,15 @@ class FluentBundle(
             if (args.isNotEmpty()) {
                 val num = args[0]
                 when (num) {
-                    is FluentValue.Number -> FluentValue.Str(num.value.value.toString())
+                    is FluentValue.Number -> FluentValue.Str(num.asString())
                     is FluentValue.Str -> {
                         val d = num.value.toDoubleOrNull() ?: 0.0
-                        FluentValue.Str(d.toString())
+                        // Format as integer if whole number
+                        if (d == d.toLong().toDouble() && d.toLong().toDouble() == d) {
+                            FluentValue.Str(d.toLong().toString())
+                        } else {
+                            FluentValue.Str(d.toString())
+                        }
                     }
                     else -> FluentValue.Str(num.asString())
                 }

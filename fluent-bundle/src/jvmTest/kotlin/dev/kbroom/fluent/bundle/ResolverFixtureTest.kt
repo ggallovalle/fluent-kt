@@ -107,11 +107,17 @@ class ResolverFixtureTest {
             val msg = bundle.getMessage(assertion.id) 
                 ?: throw RuntimeException("Message not found: ${assertion.id}")
             
-            // Build args from assertion (args are already strings after YAML parsing)
+            // Build args from assertion - parse as numbers where possible
             val args = assertion.args?.let { argMap ->
                 val fluentArgs = FluentArgs()
                 for ((key, value) in argMap) {
-                    fluentArgs.set(key, value)
+                    // Try to parse as int/long first (common case), then float, else string
+                    val intVal = value.toIntOrNull()
+                    if (intVal != null) {
+                        fluentArgs.set(key, intVal)
+                    } else {
+                        fluentArgs.set(key, value)
+                    }
                 }
                 fluentArgs
             }
