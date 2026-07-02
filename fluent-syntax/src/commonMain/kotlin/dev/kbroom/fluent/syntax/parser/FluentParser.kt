@@ -331,8 +331,12 @@ class FluentParser {
                 pos++ // skip opening "
                 val keyStart = pos
                 while (pos < source.length && peek() != '"') {
-                    if (peek() == '\\') pos++ // skip escape
-                    pos++
+                    if (peek() == '\\') {
+                        pos++ // skip escape
+                        if (pos < source.length) pos++ // skip escaped char
+                    } else {
+                        pos++
+                    }
                 }
                 val value = source.substring(keyStart, pos)
                 if (peek() == '"') pos++ // skip closing "
