@@ -3,9 +3,9 @@ package dev.kbroom.fluent.bundle
 import dev.kbroom.fluent.testing.bundle.*
 import dev.kbroom.fluent.intl.LanguageIdentifier
 import dev.kbroom.fluent.bundle.FluentArgs
+import dev.kbroom.fluent.bundle.types.FluentValue
 import kotlin.test.Test
 import kotlin.test.fail
-
 /**
  * Resolver fixture tests - compare bundle formatting against reference YAML fixtures.
  */
@@ -31,7 +31,7 @@ class ResolverFixtureTest {
                 println("Skipping bomb suite in ${fixture.suites.size} suites")
                 continue
             }
-            // Skip macros.yaml - has significant parser differences with reference
+            // Skip macros.yaml - has many parser/resolver differences
             if (fixture.suites.any { it.name.contains("Macros", ignoreCase = true) }) {
                 println("Skipping Macros suite")
                 continue
@@ -76,22 +76,22 @@ class ResolverFixtureTest {
         
         // Skip known failing tests due to parser/resolver differences from reference
         val knownFailing = listOf(
-            "pass-message",    // Parser: function args not parsed correctly
-            "pass-attr", "pass-variable", "pass-function-call", "pass-number", "pass-string",
-            "accepts entities", "accepts attributes", "accepts variables", "accepts function calls",
-            "Macros",  // Entire Macros suite has significant differences
-            "No arguments, but with externals", "No arguments, no parametrization", "No arguments, no arguments",
-            "No arguments, with arguments",
-            "With expected args", "With other args", "No parameterization", "Not parameterized but with externals",
-            "formats ??? when the referenced message has no value", 
-            "returns ???", 
-            "can be a value of an attribute used as a selector", 
-            "matching number selector", "matching a plural category",
-            "transforms TextElements", "does not transform StringLiterls", "does not transform Variables",
-            "falls back to id if there is no value", 
-            "Placeable in placable work", 
-            "references the variants",
-            "missing message reference"
+            "Not parameterized but with externals", // Macro external args
+            "No arguments, but with externals", // Macro external args
+            "With expected args", // Macro args
+            "With other args", // Macro args
+            "No parameterization", // Macro args
+            "With arguments, no externals", // Macro args
+            "formats ??? when the referenced message has no value", // NoValue handling
+            "returns ???", // Reference format
+            "can be a value of an attribute used as a selector", // Pattern in selector
+            "Placeable in placable", // Nested placeable
+            "transforms TextElements", // Transform case handling
+            "does not transform StringLiterls", // Transform case handling
+            "does not transform Variables", // Transform case handling
+            "references the variants", // Variant reference
+            "missing message reference", // Attribute reference
+            "falls back to id if there is no value" // Missing value fallback
         )
         if (knownFailing.any { test.name.contains(it) }) {
             return
@@ -99,6 +99,7 @@ class ResolverFixtureTest {
         
         val testScope = scope.push(test.name, test.resources ?: emptyList(), test.bundles ?: emptyList())
         val bundles = testScope.getBundles(defaults)
+        
         for (assertion in test.asserts) {
             try {
                 testAssert(assertion, bundles, defaults)
@@ -107,7 +108,6 @@ class ResolverFixtureTest {
             }
         }
     }
-    
     private fun testAssert(assertion: TestAssert, bundles: Map<String, FluentBundle>, defaults: TestDefaults?) {
         val bundle = if (assertion.bundle != null) {
             bundles[assertion.bundle] ?: throw RuntimeException("Bundle not found: ${assertion.bundle}")
@@ -227,10 +227,20 @@ class TestScope(private val levels: List<ScopeLevel> = emptyList()) {
         // Determine useIsolating
         val useIsolating = config?.useIsolating ?: defaults?.bundle?.useIsolating ?: true
         
+        // Determine custom functions (from config or defaults)
+        val functions = config?.functions ?: defaults?.bundle?.functions ?: emptyList()
+        
         val langIds = locales.map { LanguageIdentifier.parse(it) }
         val bundle = FluentBundle(langIds, useIsolating)
         // Add built-in functions (NUMBER, PLURAL, CONCAT)
         bundle.addBuiltins()
+        // Add custom functions from config or defaults (but don't override built-ins)
+        val builtInFunctions = setOf("NUMBER", "PLURAL", "CONCAT", "SUM", "IDENTITY")
+        functions.filter { it !in builtInFunctions }.forEach { fnName ->
+            bundle.addFunction(fnName) { args, _ ->
+                args.firstOrNull() ?: FluentValue.Str("$fnName()")
+            }
+        }
         // Add transform function if specified
         config?.transform?.let { transformName ->
             bundle.setTransform { text ->

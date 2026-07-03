@@ -404,10 +404,17 @@ class PatternResolver {
             if (variant.default) {
                 defaultVariant = variant
             }
-            
             // Check for exact match
             if (key != null && variantKey == key) {
                 return FluentValue.Str(resolve(variant.value, scope))
+            }
+            
+            // Check for plural category match (number selector matching identifier like "one", "few", etc.)
+            if (selectorValue is FluentValue.Number && variant.key is VariantKey.Identifier) {
+                val pluralCategory = getPluralCategory(selectorValue.value.value)
+                if (pluralCategory == variantKey) {
+                    return FluentValue.Str(resolve(variant.value, scope))
+                }
             }
         }
         
@@ -418,6 +425,19 @@ class PatternResolver {
             // No matching variant and no default
             scope.errors.add(dev.kbroom.fluent.bundle.FluentError.ResolverError(ResolverError.MissingDefault))
             FluentValue.None
+        }
+    }
+    
+    /**
+     * Get the CLDR plural category for a number.
+     * Simplified implementation for English locale.
+     */
+    private fun getPluralCategory(n: Double): String {
+        val i = n.toInt()
+        return when {
+            i == 1 -> "one"
+            i == 0 || i > 1 -> "other"
+            else -> "other"
         }
     }
 }

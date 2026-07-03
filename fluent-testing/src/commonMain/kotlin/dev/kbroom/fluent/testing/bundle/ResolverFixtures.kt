@@ -26,7 +26,8 @@ data class BundleDefaults(
     val locales: List<String>? = null,
     @SerialName("useIsolating")
     val useIsolating: Boolean? = null,
-    val transform: String? = null
+    val transform: String? = null,
+    val functions: List<String>? = null
 )
 
 /**

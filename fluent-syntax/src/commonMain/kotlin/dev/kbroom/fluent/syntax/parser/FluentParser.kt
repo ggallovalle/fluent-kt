@@ -505,9 +505,26 @@ class FluentParser {
                     val value = parseInlineExpression()
                     named.add(NamedArgument(Identifier(name), value))
                 } else {
-                    // Positional argument
-                    val value = parseInlineExpression()
-                    positional.add(value)
+                    // Positional argument - need to check if it's a function call
+                    skipWhitespace()
+                    when (peek()) {
+                        '(' -> {
+                            // Function call - parse the call arguments
+                            val args = parseCallArguments()
+                            positional.add(InlineExpression.FunctionReference(Identifier(name), args))
+                        }
+                        '.' -> {
+                            // Attribute access
+                            pos++ // skip .
+                            skipWhitespace()
+                            val attr = Identifier(parseIdentifier())
+                            positional.add(InlineExpression.MessageReference(Identifier(name), attr))
+                        }
+                        else -> {
+                            // Plain message reference
+                            positional.add(InlineExpression.MessageReference(Identifier(name), null))
+                        }
+                    }
                 }
             } else {
                 val value = parseInlineExpression()
