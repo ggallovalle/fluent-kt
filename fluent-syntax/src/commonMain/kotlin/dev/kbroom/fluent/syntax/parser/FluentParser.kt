@@ -607,10 +607,75 @@ sealed class ParserError {
 }
 
 sealed class ErrorKind {
+    // Basic errors
     data object MissingField : ErrorKind()
     data object InvalidIdentifier : ErrorKind()
     data object InvalidToken : ErrorKind()
     data object UnexpectedToken : ErrorKind()
+    
+    // Token errors
+    data class ExpectedToken(val token: Char) : ErrorKind()
+    data class ExpectedCharRange(val range: String) : ErrorKind()
+    
+    // Field errors
+    data class ExpectedMessageField(val entryId: String) : ErrorKind()
+    data class ExpectedTermField(val entryId: String) : ErrorKind()
+    
+    // Select expression errors
+    data object ForbiddenCallee : ErrorKind()
+    data object MissingDefaultVariant : ErrorKind()
+    data object MissingValue : ErrorKind()
+    data object MultipleDefaultVariants : ErrorKind()
+    
+    // Selector errors
+    data object MessageReferenceAsSelector : ErrorKind()
+    data object TermReferenceAsSelector : ErrorKind()
+    data object MessageAttributeAsSelector : ErrorKind()
+    data object TermAttributeAsPlaceable : ErrorKind()
+    
+    // String literal errors
+    data object UnterminatedStringLiteral : ErrorKind()
+    data object UnknownEscapeSequence : ErrorKind()
+    data class InvalidUnicodeEscapeSequence(val sequence: String) : ErrorKind()
+    
+    // Argument errors
+    data object PositionalArgumentFollowsNamed : ErrorKind()
+    data class DuplicatedNamedArgument(val name: String) : ErrorKind()
+    
+    // Expression errors
+    data object UnbalancedClosingBrace : ErrorKind()
+    data object ExpectedInlineExpression : ErrorKind()
+    data object ExpectedSimpleExpressionAsSelector : ErrorKind()
+    data object ExpectedLiteral : ErrorKind()
+    
+    // Display name for error messages
+    override fun toString(): String = when (this) {
+        is MissingField -> "Missing field"
+        is InvalidIdentifier -> "Invalid identifier"
+        is InvalidToken -> "Invalid token"
+        is UnexpectedToken -> "Unexpected token"
+        is ExpectedToken -> "Expected token '$token'"
+        is ExpectedCharRange -> "Expected one of \"$range\""
+        is ExpectedMessageField -> "Expected message field for '$entryId'"
+        is ExpectedTermField -> "Expected term field for '$entryId'"
+        is ForbiddenCallee -> "Callee is not allowed here"
+        is MissingDefaultVariant -> "The select expression must have a default variant"
+        is MissingValue -> "Expected a value"
+        is MultipleDefaultVariants -> "A select expression can only have one default variant"
+        is MessageReferenceAsSelector -> "Message references can't be used as a selector"
+        is TermReferenceAsSelector -> "Term references can't be used as a selector"
+        is MessageAttributeAsSelector -> "Message attributes can't be used as a selector"
+        is TermAttributeAsPlaceable -> "Term attributes can't be used as a placeable"
+        is UnterminatedStringLiteral -> "Unterminated string literal"
+        is UnknownEscapeSequence -> "Unknown escape sequence"
+        is InvalidUnicodeEscapeSequence -> "Invalid unicode escape sequence: $sequence"
+        is PositionalArgumentFollowsNamed -> "Positional arguments must come before named arguments"
+        is DuplicatedNamedArgument -> "The '$name' argument appears twice"
+        is UnbalancedClosingBrace -> "Unbalanced closing brace"
+        is ExpectedInlineExpression -> "Expected an inline expression"
+        is ExpectedSimpleExpressionAsSelector -> "Expected a simple expression as selector"
+        is ExpectedLiteral -> "Expected a string or number literal"
+    }
 }
 
 data class Span(val start: Int, val end: Int, val sourceText: String)
