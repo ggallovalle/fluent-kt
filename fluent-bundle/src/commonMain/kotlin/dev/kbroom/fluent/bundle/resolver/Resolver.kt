@@ -109,9 +109,6 @@ class PatternResolver {
                         sb.append('\u2068') // FSI
                     }
                     val value = resolveExpression(element.expression, scope)
-                    if (element.expression.toString().contains("foo") || element.expression.toString().contains("attr")) {
-                        println("DEBUG: expr=${element.expression}, value=$value")
-                    }
                     // Handle Pattern values - resolve them recursively
                     val resolved = when (value) {
                         is FluentValue.Pattern -> resolve(value.pattern, scope)
@@ -120,6 +117,10 @@ class PatternResolver {
                                 is Expression.Inline -> formatInlineReference(expr.expression)
                                 is Expression.Select -> "{...}"
                             }
+                        }
+                        is FluentValue.Error -> {
+                            val errMsg = value.message
+                            "{$errMsg}"
                         }
                         else -> value.asString()
                     }
@@ -233,41 +234,45 @@ class PatternResolver {
         }
         
         val message = scope.bundle.getMessage(id) ?: run {
+            // Message not found - return reference format
+            // If attribute was specified, include it in the reference
+            val refId = if (attribute != null) "$id.$attribute" else id
             scope.errors.add(dev.kbroom.fluent.bundle.FluentError.ResolverError(
-                ResolverError.Reference(ReferenceKind.MESSAGE, id)
+                ResolverError.Reference(ReferenceKind.MESSAGE, refId)
             ))
             scope.untrackPlaceable(id)
-            return FluentValue.Str("{$id}")
+            return FluentValue.Str("{$refId}")
         }
         
-        val result = if (attribute != null) {
+        if (attribute != null) {
             val attrValue = message.getAttributeValue(attribute)
             if (attrValue != null) {
-                // Untrack before resolving to allow self-references
                 scope.untrackPlaceable(id)
-                // Return Pattern to allow proper select expression handling
-                FluentValue.Pattern(attrValue)
+                return FluentValue.Pattern(attrValue)
             } else {
                 scope.errors.add(dev.kbroom.fluent.bundle.FluentError.ResolverError(
                     ResolverError.Reference(ReferenceKind.MESSAGE, "$id.$attribute")
                 ))
-                FluentValue.Str("{$id.$attribute}")
-            }
-        } else {
-            val value = message.value()
-            if (value != null) {
-                FluentValue.Str(resolve(value, scope))
-            } else {
-                // Message has no value - this is a NoValue case
-                scope.errors.add(dev.kbroom.fluent.bundle.FluentError.ResolverError(
-                    ResolverError.Reference(ReferenceKind.MESSAGE, id)
-                ))
-                FluentValue.None
+                scope.untrackPlaceable(id)
+                return FluentValue.Str("{$id.$attribute}")
             }
         }
         
+        val value = message.value()
+        // Check if value exists and has content (empty pattern should be treated as no value)
+        val hasContent = value != null && value.elements.isNotEmpty()
+        
+        if (hasContent) {
+            scope.untrackPlaceable(id)
+            return FluentValue.Str(resolve(value, scope))
+        }
+        
+        // Message has no value - return reference format
+        scope.errors.add(dev.kbroom.fluent.bundle.FluentError.ResolverError(
+            ResolverError.Reference(ReferenceKind.MESSAGE, id)
+        ))
         scope.untrackPlaceable(id)
-        return result
+        return FluentValue.Str("{$id}")
     }
     
     /**
@@ -300,9 +305,38 @@ class PatternResolver {
                 scope.untrackPlaceable(trackId)
                 return FluentValue.Pattern(attrValue!!)
             }
+            
+            // Check if term's pattern has any placeables
+            // If so, use empty args to prevent external args from leaking in
+            val termPattern = term.value()
+            val hasPlaceables = termPattern.elements.any { it is PatternElement.Placeable }
+            
+            // Check if explicit arguments were provided to this term reference
+            val hasExplicitArgs = arguments != null && 
+                (arguments.positional.isNotEmpty() || arguments.named.isNotEmpty())
+            
+            // Determine which scope to use
+            val resolveScope: Scope = when {
+                // If explicit args provided, use them
+                hasExplicitArgs -> {
+                    val termArgs = dev.kbroom.fluent.bundle.FluentArgs()
+                    for (named in arguments!!.named) {
+                        val argValue = resolveInlineExpression(named.value, scope)
+                        termArgs.set(named.name.name, argValue)
+                    }
+                    Scope(scope.bundle, termArgs, scope.errors)
+                }
+                // If no explicit args but external args exist, use empty to block
+                scope.args != null -> {
+                    val emptyArgs = dev.kbroom.fluent.bundle.FluentArgs()
+                    Scope(scope.bundle, emptyArgs, scope.errors)
+                }
+                else -> scope
+            }
+            
             // Untrack before resolving to allow self-references
             scope.untrackPlaceable(trackId)
-            return FluentValue.Str(resolve(term.value(), scope))
+            return FluentValue.Str(resolve(term.value(), resolveScope))
         }
         
         // Term not found - try as message reference
@@ -361,7 +395,6 @@ class PatternResolver {
             }
             return fn(positional, args)
         }
-        
         scope.errors.add(dev.kbroom.fluent.bundle.FluentError.ResolverError(
             ResolverError.Reference(ReferenceKind.FUNCTION, name)
         ))
@@ -379,16 +412,15 @@ class PatternResolver {
         val selectorValue = resolveInlineExpression(selector, scope)
         
         // Get the key for matching - handle None gracefully
-        val key = when (selectorValue) {
+        val key: String? = when (selectorValue) {
             is FluentValue.Str -> selectorValue.value
             is FluentValue.Number -> selectorValue.value.value.toInt().toString()
             is FluentValue.None -> null  // Use default variant
-            is FluentValue.Pattern -> selectorValue.pattern.elements.firstOrNull()?.let {
-                when (it) {
-                    is PatternElement.TextElement -> it.value
-                    else -> selectorValue.asString()
-                }
-            } ?: selectorValue.asString()
+            is FluentValue.Pattern -> {
+                // Resolve the pattern to a string for comparison
+                val resolved = resolve(selectorValue.pattern, scope)
+                resolved.ifEmpty { null }
+            }
             else -> selectorValue.asString()
         }
         
@@ -404,7 +436,6 @@ class PatternResolver {
             if (variant.default) {
                 defaultVariant = variant
             }
-            // Check for exact match
             if (key != null && variantKey == key) {
                 return FluentValue.Str(resolve(variant.value, scope))
             }

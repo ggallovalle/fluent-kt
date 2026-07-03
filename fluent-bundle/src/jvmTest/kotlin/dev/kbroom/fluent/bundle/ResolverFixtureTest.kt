@@ -31,9 +31,9 @@ class ResolverFixtureTest {
                 println("Skipping bomb suite in ${fixture.suites.size} suites")
                 continue
             }
-            // Skip macros.yaml - has many parser/resolver differences
-            if (fixture.suites.any { it.name.contains("Macros", ignoreCase = true) }) {
-                println("Skipping Macros suite")
+            // Skip bomb.yaml - causes infinite loop without cycle detection
+            if (fixture.suites.any { it.name.contains("bomb", ignoreCase = true) }) {
+                println("Skipping bomb suite in ${fixture.suites.size} suites")
                 continue
             }
             
@@ -73,29 +73,6 @@ class ResolverFixtureTest {
     
     private fun testTest(test: TestCase, defaults: TestDefaults?, scope: TestScope) {
         if (test.skip == true) return
-        
-        // Skip known failing tests due to parser/resolver differences from reference
-        val knownFailing = listOf(
-            "Not parameterized but with externals", // Macro external args
-            "No arguments, but with externals", // Macro external args
-            "With expected args", // Macro args
-            "With other args", // Macro args
-            "No parameterization", // Macro args
-            "With arguments, no externals", // Macro args
-            "formats ??? when the referenced message has no value", // NoValue handling
-            "returns ???", // Reference format
-            "can be a value of an attribute used as a selector", // Pattern in selector
-            "Placeable in placable", // Nested placeable
-            "transforms TextElements", // Transform case handling
-            "does not transform StringLiterls", // Transform case handling
-            "does not transform Variables", // Transform case handling
-            "references the variants", // Variant reference
-            "missing message reference", // Attribute reference
-            "falls back to id if there is no value" // Missing value fallback
-        )
-        if (knownFailing.any { test.name.contains(it) }) {
-            return
-        }
         
         val testScope = scope.push(test.name, test.resources ?: emptyList(), test.bundles ?: emptyList())
         val bundles = testScope.getBundles(defaults)

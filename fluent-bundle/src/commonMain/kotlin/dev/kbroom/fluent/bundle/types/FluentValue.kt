@@ -52,7 +52,6 @@ sealed class FluentValue {
         is Str -> value
         is Number -> {
             val v = value.value
-            // Format integer values without decimal point if whole number
             val intValue = v.toLong()
             if (v == intValue.toDouble() && intValue.toDouble() == v) {
                 intValue.toString()
