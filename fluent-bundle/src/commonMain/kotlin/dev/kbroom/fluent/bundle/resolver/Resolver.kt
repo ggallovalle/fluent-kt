@@ -115,6 +115,12 @@ class PatternResolver {
                     // Handle Pattern values - resolve them recursively
                     val resolved = when (value) {
                         is FluentValue.Pattern -> resolve(value.pattern, scope)
+                        is FluentValue.None -> {
+                            when (val expr = element.expression) {
+                                is Expression.Inline -> formatInlineReference(expr.expression)
+                                is Expression.Select -> "{...}"
+                            }
+                        }
                         else -> value.asString()
                     }
                     sb.append(resolved)

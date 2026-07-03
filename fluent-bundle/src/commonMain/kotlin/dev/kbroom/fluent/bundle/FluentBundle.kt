@@ -72,7 +72,38 @@ class FluentBundle(
     }
     
     fun hasMessage(id: String): Boolean {
-        return entries[id] is Entry.Message
+        val entry = entries[id]
+        
+        if (entry !is Entry.Message) return false
+        
+        val pattern = entry.value ?: return false
+        
+        // Check if pattern has actual content (not just comments or whitespace)
+        val hasContent = pattern.elements.any { element ->
+            when (element) {
+                is dev.kbroom.fluent.syntax.PatternElement.TextElement -> {
+                    // Skip if it looks like a comment (starts with #)
+                    val text = element.value.trim()
+                    text.isNotEmpty() && !text.startsWith("#") && !text.startsWith("ERROR")
+                }
+                is dev.kbroom.fluent.syntax.PatternElement.Placeable -> true
+            }
+        }
+        
+        // Also check attributes
+        val hasAttrContent = entry.attributes.any { attr ->
+            attr.value.elements.any { element ->
+                when (element) {
+                    is dev.kbroom.fluent.syntax.PatternElement.TextElement -> {
+                        val text = element.value.trim()
+                        text.isNotEmpty() && !text.startsWith("#") && !text.startsWith("ERROR")
+                    }
+                    is dev.kbroom.fluent.syntax.PatternElement.Placeable -> true
+                }
+            }
+        }
+        
+        return hasContent || hasAttrContent
     }
     
     fun getTerm(id: String): FluentTerm? {
