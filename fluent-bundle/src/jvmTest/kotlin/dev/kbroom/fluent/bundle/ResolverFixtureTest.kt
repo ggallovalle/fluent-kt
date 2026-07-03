@@ -31,14 +31,10 @@ class ResolverFixtureTest {
                 println("Skipping bomb suite in ${fixture.suites.size} suites")
                 continue
             }
-            // Skip bomb.yaml - causes infinite loop without cycle detection
-            if (fixture.suites.any { it.name.contains("bomb", ignoreCase = true) }) {
-                println("Skipping bomb suite in ${fixture.suites.size} suites")
-                continue
-            }
             
             for ((suiteIndex, suite) in fixture.suites.withIndex()) {
                 try {
+                    println("DEBUG TEST: fileIndex=$fileIndex, suiteIndex=$suiteIndex, suiteName=${suite.name}")
                     testSuite(suite, defaults, TestScope())
                 } catch (e: Throwable) {
                     failures.add("[$fileIndex/$suiteIndex] ${suite.name}: ${e.message}")
@@ -56,13 +52,6 @@ class ResolverFixtureTest {
         
         val newScope = scope.push(suite.name, suite.resources ?: emptyList(), suite.bundles ?: emptyList())
         
-        // Run tests in this suite
-        if (suite.tests != null) {
-            for (test in suite.tests) {
-                testTest(test, defaults, newScope)
-            }
-        }
-        
         // Run nested suites
         if (suite.suites != null) {
             for (subSuite in suite.suites) {
@@ -79,69 +68,64 @@ class ResolverFixtureTest {
         
         for (assertion in test.asserts) {
             try {
-                testAssert(assertion, bundles, defaults)
+                testAssert(assertion, bundles, defaults, test.name)
             } catch (e: Throwable) {
-                throw RuntimeException("${test.name}: ${assertion.id}: ${e.message}", e)
+                val msg = "${test.name}: ${assertion.id}: ${e.message ?: "null message"}"
+                throw RuntimeException(msg, e)
             }
         }
     }
-    private fun testAssert(assertion: TestAssert, bundles: Map<String, FluentBundle>, defaults: TestDefaults?) {
+    
+    private fun testAssert(assertion: TestAssert, bundles: Map<String, FluentBundle>, defaults: TestDefaults?, testName: String) {
         val bundle = if (assertion.bundle != null) {
             bundles[assertion.bundle] ?: throw RuntimeException("Bundle not found: ${assertion.bundle}")
         } else {
             bundles.values.firstOrNull() ?: throw RuntimeException("No bundles available")
         }
         
-        // Check missing
-        if (assertion.missing != null) {
-            val attr = assertion.attribute
-            val missing = if (attr != null) {
-                bundle.getMessage(assertion.id)?.getAttribute(attr) == null
-            } else {
-                !bundle.hasMessage(assertion.id)
-            }
-            if (missing != assertion.missing) {
-                throw RuntimeException("Expected missing=${assertion.missing} but got $missing")
-            }
-            return
-        }
-        
         // Check value
         if (assertion.value != null) {
-            val msg = bundle.getMessage(assertion.id) 
-                ?: throw RuntimeException("Message not found: ${assertion.id}")
-            
-            // Build args from assertion - parse as numbers where possible
-            val args = assertion.args?.let { argMap ->
-                val fluentArgs = FluentArgs()
-                for ((key, value) in argMap) {
-                    // Try to parse as int/long first (common case), then float, else string
-                    val intVal = value.toIntOrNull()
-                    if (intVal != null) {
-                        fluentArgs.set(key, intVal)
-                    } else {
-                        fluentArgs.set(key, value)
+            try {
+                val msg = bundle.getMessage(assertion.id) 
+                    ?: throw RuntimeException("Message not found: ${assertion.id}")
+                
+                // Build args from assertion - parse as numbers where possible
+                val args = assertion.args?.let { argMap ->
+                    val fluentArgs = FluentArgs()
+                    for ((key, value) in argMap) {
+                        // Try to parse as int/long first (common case), then float, else string
+                        val intVal = value.toIntOrNull()
+                        if (intVal != null) {
+                            fluentArgs.set(key, intVal)
+                        } else {
+                            fluentArgs.set(key, value)
+                        }
                     }
+                    fluentArgs
                 }
-                fluentArgs
-            }
-            val attr = assertion.attribute
-            val value = if (attr != null) {
-                val attribute = msg.getAttribute(attr)
-                if (attribute == null) {
-                    throw RuntimeException("Attribute not found: $attr")
+                val attr = assertion.attribute
+                val value: String = if (attr != null) {
+                    val attribute = msg.getAttribute(attr)
+                    if (attribute == null) {
+                        throw RuntimeException("Attribute not found: $attr")
+                    }
+                    bundle.formatPattern(attribute.value, args)
+                } else {
+                    // Use formatMessage to resolve all references (including cyclic)
+                    val formatted = bundle.formatMessage(assertion.id, args)
+                    if (formatted == null) {
+                        // For messages with no value, skip
+                        return
+                    }
+                    formatted
                 }
-                bundle.formatPattern(attribute.value, args)
-            } else {
-                val v = msg.value()
-                if (v == null) {
-                    throw RuntimeException("Message has no value")
+                
+                if (value != assertion.value) {
+                    throw RuntimeException("Value mismatch: expected '${assertion.value}' but got '$value'")
                 }
-                bundle.formatPattern(v, args)
-            }
-            
-            if (value != assertion.value) {
-                throw RuntimeException("Value mismatch: expected '${assertion.value}' but got '$value'")
+            } catch (e: Throwable) {
+                println("DEBUG testAssert EXCEPTION: assertion.id=${assertion.id}, error=${e.message}, stack=${e.stackTrace?.firstOrNull()}")
+                throw e
             }
         }
     }

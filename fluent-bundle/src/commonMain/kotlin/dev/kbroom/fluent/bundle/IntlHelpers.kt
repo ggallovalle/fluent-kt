@@ -1,0 +1,148 @@
+package dev.kbroom.fluent.bundle
+
+import dev.kbroom.fluent.bundle.types.FluentNumber
+import dev.kbroom.fluent.bundle.types.FluentValue
+import dev.kbroom.fluent.intl.LanguageIdentifier
+import dev.kbroom.fluent.intl.IntlLangMemoizer
+
+/**
+ * Platform-specific Intl helper functions.
+ * These are implemented via expect/actual in platform-specific sources.
+ */
+object IntlHelpers {
+    
+    /**
+     * Format a number using locale-aware Intl formatting.
+     * Returns null if platform doesn't support it.
+     */
+    fun formatNumber(
+        value: Double,
+        locale: LanguageIdentifier,
+        memoizer: IntlLangMemoizer,
+        style: String? = null,
+        currency: String? = null,
+        currencyDisplay: String? = null,
+        minimumFractionDigits: Int? = null,
+        maximumFractionDigits: Int? = null,
+        useGrouping: Boolean? = null
+    ): String? = PlatformIntl.formatNumber(
+        value, locale, memoizer, style, currency, currencyDisplay,
+        minimumFractionDigits, maximumFractionDigits, useGrouping
+    )
+    
+    /**
+     * Format a date/time using locale-aware Intl formatting.
+     */
+    fun formatDateTime(
+        value: Long,
+        locale: LanguageIdentifier,
+        memoizer: IntlLangMemoizer,
+        dateStyle: String? = null,
+        timeStyle: String? = null,
+        hour12: Boolean? = null,
+        timeZone: String? = null
+    ): String? = PlatformIntl.formatDateTime(
+        value, locale, memoizer, dateStyle, timeStyle, hour12, timeZone
+    )
+    
+    /**
+     * Format a date only.
+     */
+    fun formatDate(
+        value: Long,
+        locale: LanguageIdentifier,
+        memoizer: IntlLangMemoizer,
+        style: String = "medium",
+        timeZone: String? = null
+    ): String? = PlatformIntl.formatDate(value, locale, memoizer, style, timeZone)
+    
+    /**
+     * Format a time only.
+     */
+    fun formatTime(
+        value: Long,
+        locale: LanguageIdentifier,
+        memoizer: IntlLangMemoizer,
+        style: String = "medium",
+        hour12: Boolean? = null,
+        timeZone: String? = null
+    ): String? = PlatformIntl.formatTime(value, locale, memoizer, style, hour12, timeZone)
+    
+    /**
+     * Format a list with locale-aware conjunction/disjunction.
+     */
+    fun formatList(
+        values: List<String>,
+        locale: LanguageIdentifier,
+        memoizer: IntlLangMemoizer,
+        type: String = "conjunction",
+        style: String = "long"
+    ): String? = PlatformIntl.formatList(values, locale, memoizer, type, style)
+    
+    /**
+     * Get plural category for a number in a given locale.
+     */
+    fun getPluralCategory(
+        value: Double,
+        locale: LanguageIdentifier,
+        memoizer: IntlLangMemoizer
+    ): String = PlatformIntl.getPluralCategory(value, locale, memoizer)
+}
+
+/**
+ * Platform-specific Intl implementations.
+ */
+expect object PlatformIntl {
+    fun formatNumber(
+        value: Double,
+        locale: LanguageIdentifier,
+        memoizer: IntlLangMemoizer,
+        style: String?,
+        currency: String?,
+        currencyDisplay: String?,
+        minimumFractionDigits: Int?,
+        maximumFractionDigits: Int?,
+        useGrouping: Boolean?
+    ): String?
+    
+    fun formatDateTime(
+        value: Long,
+        locale: LanguageIdentifier,
+        memoizer: IntlLangMemoizer,
+        dateStyle: String?,
+        timeStyle: String?,
+        hour12: Boolean?,
+        timeZone: String?
+    ): String?
+    
+    fun formatDate(
+        value: Long,
+        locale: LanguageIdentifier,
+        memoizer: IntlLangMemoizer,
+        style: String,
+        timeZone: String?
+    ): String?
+    
+    fun formatTime(
+        value: Long,
+        locale: LanguageIdentifier,
+        memoizer: IntlLangMemoizer,
+        style: String,
+        hour12: Boolean?,
+        timeZone: String?
+    ): String?
+    
+    fun formatList(
+        values: List<String>,
+        locale: LanguageIdentifier,
+        memoizer: IntlLangMemoizer,
+        type: String,
+        style: String
+    ): String?
+    
+    fun getPluralCategory(
+        value: Double,
+        locale: LanguageIdentifier,
+        memoizer: IntlLangMemoizer
+    ): String
+}

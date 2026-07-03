@@ -14,12 +14,22 @@ interface Memoizable {
 }
 
 /**
+ * Key for memoizing formatters with specific options.
+ */
+data class FormatterKey(
+    val name: String,
+    val options: Any? = null
+)
+
+/**
  * Per-language memoizer that caches instances by type.
  * 
  * Maintains a map from KClass to cached instance for a single locale.
+ * Also supports caching formatters by name + options.
  */
 class IntlLangMemoizer {
     private val cache: MutableMap<KClass<*>, Any> = LinkedHashMap()
+    private val formatterCache: MutableMap<FormatterKey, Any> = LinkedHashMap()
     
     /**
      * Try to get a cached instance of type T, or create one if not cached.
@@ -45,16 +55,45 @@ class IntlLangMemoizer {
     }
     
     /**
+     * Get or create a formatter with the given name and options.
+     * The options should be a data class with consistent equals/hashCode.
+     */
+    @Suppress("UNCHECKED_CAST")
+    fun <T : Any> getOrCreateFormatter(
+        name: String,
+        options: Any?,
+        factory: () -> T
+    ): T {
+        val key = FormatterKey(name, options)
+        val existing = formatterCache[key] as? T
+        return existing ?: run {
+            val created = factory()
+            formatterCache[key] = created
+            created
+        }
+    }
+    
+    /**
      * Get a cached value if it exists.
      */
     @Suppress("UNCHECKED_CAST")
     fun <T : Any> getOrNull(clazz: KClass<T>): T? = cache[clazz] as? T
     
     /**
+     * Get a cached formatter if it exists.
+     */
+    @Suppress("UNCHECKED_CAST")
+    fun <T : Any> getFormatterOrNull(name: String, options: Any?): T? {
+        val key = FormatterKey(name, options)
+        return formatterCache[key] as? T
+    }
+    
+    /**
      * Clear all cached values for this language.
      */
     fun clear() {
         cache.clear()
+        formatterCache.clear()
     }
     
     /**

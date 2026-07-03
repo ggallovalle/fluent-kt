@@ -52,6 +52,8 @@ class Scope(
     val errors: MutableList<dev.kbroom.fluent.bundle.FluentError> = mutableListOf(),
     private val placeables: MutableSet<String> = mutableSetOf()
 ) {
+    // Public getter for debugging
+    fun getPlaceables(): Set<String> = placeables.toSet()
     private var dirty = false
     
     /**
@@ -65,7 +67,6 @@ class Scope(
         placeables.add(id)
         return true
     }
-    
     /**
      * Untrack a placeable after resolution.
      */
@@ -84,23 +85,25 @@ class Scope(
     fun isDirty(): Boolean = dirty
 }
 
-/**
- * Pattern resolver - converts AST Pattern to formatted string.
- */
 class PatternResolver {
     
     /**
      * Resolve a pattern to a string.
+     * @param pattern The pattern to resolve
+     * @param scope The resolution scope
+     * @param applyTransform Whether to apply transform to text elements. Should be false when resolving referenced patterns.
      */
-    fun resolve(pattern: Pattern, scope: Scope): String {
+    fun resolve(pattern: Pattern, scope: Scope, applyTransform: Boolean = true): String {
         val sb = StringBuilder()
         val useIsolating = scope.bundle.useIsolating
         val len = pattern.elements.size
-        
+        val transform = if (applyTransform) scope.bundle.getTransform() else null
         for (element in pattern.elements) {
             when (element) {
                 is PatternElement.TextElement -> {
-                    sb.append(element.value)
+                    // Transform text elements only if applyTransform is true
+                    val text = element.value
+                    sb.append(transform?.invoke(text) ?: text)
                 }
                 is PatternElement.Placeable -> {
                     // Check if we need isolation marks
@@ -111,7 +114,7 @@ class PatternResolver {
                     val value = resolveExpression(element.expression, scope)
                     // Handle Pattern values - resolve them recursively
                     val resolved = when (value) {
-                        is FluentValue.Pattern -> resolve(value.pattern, scope)
+                        is FluentValue.Pattern -> resolve(value.pattern, scope, applyTransform)
                         is FluentValue.None -> {
                             when (val expr = element.expression) {
                                 is Expression.Inline -> formatInlineReference(expr.expression)
@@ -122,8 +125,9 @@ class PatternResolver {
                             val errMsg = value.message
                             "{$errMsg}"
                         }
-                        else -> value.asString()
+                    else -> value.asString()
                     }
+                    // Don't transform placeable output - only TextElements get transformed
                     sb.append(resolved)
                     if (needsIsolation) {
                         sb.append('\u2069') // PDI
@@ -230,6 +234,9 @@ class PatternResolver {
     private fun resolveMessageReference(id: String, attribute: String?, scope: Scope): FluentValue {
         // Track for cycle detection
         if (!scope.trackPlaceable(id)) {
+            // Cycle detected - already tracking this id, return raw reference
+            // Untrack first since we're returning early
+            scope.untrackPlaceable(id)
             return FluentValue.Str("{$id}")
         }
         
@@ -257,14 +264,16 @@ class PatternResolver {
                 return FluentValue.Str("{$id.$attribute}")
             }
         }
-        
         val value = message.value()
         // Check if value exists and has content (empty pattern should be treated as no value)
         val hasContent = value != null && value.elements.isNotEmpty()
         
         if (hasContent) {
+            // Don't apply transform when resolving referenced patterns
+            // This ensures {foo} in pattern A doesn't get transformed when foo is resolved
+            val result = resolve(value, scope, applyTransform = false)
             scope.untrackPlaceable(id)
-            return FluentValue.Str(resolve(value, scope))
+            return FluentValue.Str(result)
         }
         
         // Message has no value - return reference format
@@ -300,10 +309,24 @@ class PatternResolver {
             if (attribute != null && attrValue == null) {
                 return FluentValue.Str("{-$id.$attribute}")
             }
-            // Return pattern for attribute values to allow proper select handling
+            // Return resolved value for attribute to allow proper select handling
             if (attribute != null) {
+                // Build scope with provided arguments if any
+                val resolveScope = if (arguments != null && (arguments.positional.isNotEmpty() || arguments.named.isNotEmpty())) {
+                    val termArgs = dev.kbroom.fluent.bundle.FluentArgs()
+                    for (named in arguments.named) {
+                        val argValue = resolveInlineExpression(named.value, scope)
+                        termArgs.set(named.name.name, argValue)
+                    }
+                    Scope(scope.bundle, termArgs, scope.errors)
+                } else {
+                    // No arguments - use empty scope to block external args
+                    val emptyArgs = dev.kbroom.fluent.bundle.FluentArgs()
+                    Scope(scope.bundle, emptyArgs, scope.errors)
+                }
                 scope.untrackPlaceable(trackId)
-                return FluentValue.Pattern(attrValue!!)
+                val resolvedAttr = resolve(attrValue!!, resolveScope)
+                return FluentValue.Str(resolvedAttr)
             }
             
             // Check if term's pattern has any placeables

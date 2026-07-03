@@ -7,7 +7,6 @@ import dev.kbroom.fluent.bundle.types.FluentNumber
 import dev.kbroom.fluent.bundle.types.FluentValue
 import dev.kbroom.fluent.intl.LanguageIdentifier
 import dev.kbroom.fluent.intl.IntlLangMemoizer
-import dev.kbroom.fluent.bundle.types.getPluralCategory
 /**
  * FluentBundle is the main runtime for localization.
  */
@@ -123,14 +122,23 @@ class FluentBundle(
     ): String {
         val scope = Scope(this, args, errors)
         val result = resolver.resolve(pattern, scope)
-        return transform?.invoke(result) ?: result
+        // Transform is now applied per element in the resolver
+        return result
     }
     
-    fun format(id: String, args: FluentArgs? = null): String? {
+    /**
+     * Format a message by its ID, resolving all references.
+     */
+    fun formatMessage(id: String, args: FluentArgs? = null): String? {
         val message = getMessage(id) ?: return null
         val pattern = message.value() ?: return null
         val errors = mutableListOf<FluentError>()
-        return formatPattern(pattern, args, errors)
+        // Create a single scope and reuse it for all nested resolves - this enables cycle detection
+        val scope = Scope(this, args, errors)
+        return resolver.resolve(pattern, scope)
+    }
+    fun format(id: String, args: FluentArgs? = null): String? {
+        return formatMessage(id, args)
     }
     
     fun setUseIsolating(value: Boolean) {
@@ -141,6 +149,11 @@ class FluentBundle(
         transform = fn
     }
     
+    fun clearTransform() {
+        transform = null
+    }
+    
+    fun getTransform(): ((String) -> String)? = transform
     fun setFormatter(fn: (FluentValue, IntlLangMemoizer) -> String?) {
         formatter = fn
     }
@@ -154,11 +167,45 @@ class FluentBundle(
     }
     
     fun addBuiltins() {
+        // Capture references for use in closures
+        val bundleLocales = locales
+        val bundleMemoizer = memoizer
+        
         addFunction("NUMBER") { args, _ ->
             if (args.isNotEmpty()) {
                 val num = args[0]
                 when (num) {
-                    is FluentValue.Number -> FluentValue.Str(num.asString())
+                    is FluentValue.Number -> {
+                        // Try to use real Intl formatting
+                        val locale = bundleLocales.firstOrNull()
+                        val formatted = if (locale != null) {
+                            val numberOptions = num.value.options
+                            IntlHelpers.formatNumber(
+                                value = num.value.value,
+                                locale = locale,
+                                memoizer = bundleMemoizer,
+                                style = numberOptions.style?.name?.lowercase(),
+                                currency = numberOptions.currency,
+                                currencyDisplay = numberOptions.currencyDisplay?.name?.lowercase(),
+                                minimumFractionDigits = numberOptions.minimumFractionDigits,
+                                maximumFractionDigits = numberOptions.maximumFractionDigits,
+                                useGrouping = true
+                            )
+                        } else null
+                        
+                        if (formatted != null) {
+                            FluentValue.Str(formatted)
+                        } else {
+                            // Fallback to simple conversion
+                            val v = num.value.value
+                            val intValue = v.toLong()
+                            if (v == intValue.toDouble() && intValue.toDouble() == v) {
+                                FluentValue.Str(intValue.toString())
+                            } else {
+                                FluentValue.Str(v.toString())
+                            }
+                        }
+                    }
                     is FluentValue.Str -> {
                         val d = num.value.toDoubleOrNull() ?: 0.0
                         // Format as integer if whole number
@@ -183,11 +230,54 @@ class FluentBundle(
                     is FluentValue.Str -> num.value.toDoubleOrNull() ?: 0.0
                     else -> 0.0
                 }
-                val locale = locales.firstOrNull()?.language ?: "en"
-                val category = getPluralCategory(value, locale)
-                FluentValue.Str(category.name.lowercase())
+                val locale = bundleLocales.firstOrNull() ?: LanguageIdentifier.parse("en")
+                val category = IntlHelpers.getPluralCategory(value, locale, bundleMemoizer)
+                FluentValue.Str(category)
             } else {
                 FluentValue.Str("other")
+            }
+        }
+        
+        addFunction("DATETIME") { args, _ ->
+            if (args.isNotEmpty()) {
+                val value = args[0]
+                val timestamp = when (value) {
+                    is FluentValue.Number -> value.value.value.toLong()
+                    is FluentValue.Str -> value.value.toLongOrNull() ?: 0L
+                    else -> 0L
+                }
+                val locale = bundleLocales.firstOrNull() ?: LanguageIdentifier.parse("en")
+                
+                val formatted = IntlHelpers.formatDateTime(
+                    value = timestamp,
+                    locale = locale,
+                    memoizer = bundleMemoizer,
+                    dateStyle = null,
+                    timeStyle = null,
+                    hour12 = null,
+                    timeZone = null
+                )
+                FluentValue.Str(formatted ?: timestamp.toString())
+            } else {
+                FluentValue.Str("")
+            }
+        }
+        
+        // LIST function - format a list with locale-aware conjunction
+        addFunction("LIST") { args, _ ->
+            if (args.isNotEmpty()) {
+                val locale = bundleLocales.firstOrNull() ?: LanguageIdentifier.parse("en")
+                val stringValues = args.map { it.asString() }
+                val formatted = IntlHelpers.formatList(
+                    values = stringValues,
+                    locale = locale,
+                    memoizer = bundleMemoizer,
+                    type = "conjunction",
+                    style = "long"
+                )
+                FluentValue.Str(formatted ?: stringValues.joinToString(", "))
+            } else {
+                FluentValue.Str("")
             }
         }
         

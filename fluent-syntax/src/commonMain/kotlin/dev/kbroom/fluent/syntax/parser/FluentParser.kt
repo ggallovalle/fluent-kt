@@ -383,6 +383,15 @@ class FluentParser {
                 if (peek() == ')') pos++
                 InlineExpression.Placeable(expr)
             }
+            peek() == '{' -> {
+                // Nested placeable - { expr }
+                pos++ // skip {
+                skipWhitespace()
+                val expr = parseExpression()
+                skipWhitespace()
+                if (peek() == '}') pos++
+                InlineExpression.Placeable(expr)
+            }
             else -> {
                 val start = pos
                 skipToNewline()
@@ -426,7 +435,8 @@ class FluentParser {
             // Has arguments - could be term call or function call
             // If it started with -, it's a term call; otherwise it's a function call
             // We already skipped the -, so it's a term call
-            InlineExpression.TermReference(Identifier(name), null, arguments)
+            // Preserve the attribute even when there are arguments
+            InlineExpression.TermReference(Identifier(name), attribute, arguments)
         } else if (attribute != null) {
             InlineExpression.TermReference(Identifier(name), attribute, null)
         } else {
