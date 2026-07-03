@@ -87,11 +87,98 @@ fun emptyResourceAllLocalesScenario(): Scenario {
     )
 }
 
+/**
+ * Missing optional resource in one locale - should fallback only for that resource.
+ */
+fun missingOptionalOneLocaleScenario(): Scenario {
+    return Scenario(
+        name = "missing_optional_one_locale",
+        locales = listOf(LanguageIdentifier.parse("en-US"), LanguageIdentifier.parse("pl")),
+        resources = mapOf(
+            "en-US" to """
+                history-section-label = History
+                present-key = Present in en-US
+            """.trimIndent(),
+            "pl" to """
+                history-section-label = Historia
+            """.trimIndent()
+        ),
+        queries = listOf(
+            Query("history-section-label", null, "Historia"),  // fallback to pl
+            Query("present-key", null, "Present in en-US")   // use en-US
+        )
+    )
+}
+
+/**
+ * Missing optional resource in all locales - should fallback completely.
+ */
+fun missingOptionalAllLocalesScenario(): Scenario {
+    return Scenario(
+        name = "missing_optional_all_locales",
+        locales = listOf(LanguageIdentifier.parse("en-US"), LanguageIdentifier.parse("pl")),
+        resources = mapOf(
+            "en-US" to """
+                present-key = Present
+            """.trimIndent(),
+            "pl" to """
+                present-key = Obecny
+            """.trimIndent()
+        ),
+        queries = listOf(
+            Query("present-key", null, "Obecny"),  // use pl
+            Query("missing-key", null, null)       // missing, optional
+        )
+    )
+}
+
+/**
+ * Missing required resource in one locale - should error.
+ */
+fun missingRequiredOneLocaleScenario(): Scenario {
+    return Scenario(
+        name = "missing_required_one_locale",
+        locales = listOf(LanguageIdentifier.parse("en-US"), LanguageIdentifier.parse("pl")),
+        resources = mapOf(
+            "en-US" to """
+                required-key = Required
+            """.trimIndent()
+            // pl has no resources - required
+        ),
+        queries = listOf(
+            Query("required-key", null, "Required")
+        ),
+        expectedErrors = 1
+    )
+}
+
+/**
+ * Missing required resource in all locales - should error.
+ */
+fun missingRequiredAllLocalesScenario(): Scenario {
+    return Scenario(
+        name = "missing_required_all_locales",
+        locales = listOf(LanguageIdentifier.parse("en-US"), LanguageIdentifier.parse("pl")),
+        resources = mapOf(
+            "en-US" to "",
+            "pl" to ""
+        ),
+        queries = listOf(
+            Query("any-key", null, null)
+        ),
+        expectedErrors = 1
+    )
+}
+
 fun getScenarios(): List<Scenario> = listOf(
     simpleScenario(),
     browserScenario(),
     emptyResourceOneLocaleScenario(),
-    emptyResourceAllLocalesScenario()
+    emptyResourceAllLocalesScenario(),
+    missingOptionalOneLocaleScenario(),
+    missingOptionalAllLocalesScenario(),
+    missingRequiredOneLocaleScenario(),
+    missingRequiredAllLocalesScenario()
 )
 
 fun runScenario(scenario: Scenario): ScenarioResult {
