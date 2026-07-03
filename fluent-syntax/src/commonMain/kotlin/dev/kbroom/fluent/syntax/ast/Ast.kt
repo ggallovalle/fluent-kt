@@ -1,5 +1,6 @@
 package dev.kbroom.fluent.syntax
 
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
@@ -10,17 +11,17 @@ data class Resource(val body: List<Entry>)
 
 @Serializable
 sealed class Entry {
-    @Serializable
+    @Serializable @SerialName("Message")
     data class Message(val id: Identifier, val value: Pattern? = null, val attributes: List<Attribute> = emptyList(), val comment: Comment? = null) : Entry()
-    @Serializable
+    @Serializable @SerialName("Term")
     data class Term(val id: Identifier, val value: Pattern, val attributes: List<Attribute> = emptyList(), val comment: Comment? = null) : Entry()
-    @Serializable
+    @Serializable @SerialName("Comment")
     data class Comment(val content: List<String>) : Entry()
-    @Serializable
+    @Serializable @SerialName("GroupComment")
     data class GroupComment(val content: List<String>) : Entry()
-    @Serializable
+    @Serializable @SerialName("ResourceComment")
     data class ResourceComment(val content: List<String>) : Entry()
-    @Serializable
+    @Serializable @SerialName("Junk")
     data class Junk(val content: String) : Entry()
 }
 
@@ -32,9 +33,9 @@ data class Pattern(val elements: List<PatternElement>)
 
 @Serializable
 sealed class PatternElement {
-    @Serializable
+    @Serializable @SerialName("TextElement")
     data class TextElement(val value: String) : PatternElement()
-    @Serializable
+    @Serializable @SerialName("Placeable")
     data class Placeable(val expression: Expression) : PatternElement()
 }
 
@@ -43,27 +44,27 @@ data class Attribute(val id: Identifier, val value: Pattern)
 
 @Serializable
 sealed class Expression {
-    @Serializable
+    @Serializable @SerialName("Select")
     data class Select(val selector: InlineExpression, val variants: List<Variant>) : Expression()
-    @Serializable
+    @Serializable @SerialName("Inline")
     data class Inline(val expression: InlineExpression) : Expression()
 }
 
 @Serializable
 sealed class InlineExpression {
-    @Serializable
+    @Serializable @SerialName("StringLiteral")
     data class StringLiteral(val value: String) : InlineExpression()
-    @Serializable
+    @Serializable @SerialName("NumberLiteral")
     data class NumberLiteral(val value: String) : InlineExpression()
-    @Serializable
+    @Serializable @SerialName("FunctionReference")
     data class FunctionReference(val id: Identifier, val arguments: CallArguments) : InlineExpression()
-    @Serializable
+    @Serializable @SerialName("MessageReference")
     data class MessageReference(val id: Identifier, val attribute: Identifier? = null) : InlineExpression()
-    @Serializable
+    @Serializable @SerialName("TermReference")
     data class TermReference(val id: Identifier, val attribute: Identifier? = null, val arguments: CallArguments? = null) : InlineExpression()
-    @Serializable
+    @Serializable @SerialName("VariableReference")
     data class VariableReference(val id: Identifier) : InlineExpression()
-    @Serializable
+    @Serializable @SerialName("Placeable")
     data class Placeable(val expression: Expression) : InlineExpression()
 }
 
@@ -72,9 +73,9 @@ data class Variant(val key: VariantKey, val value: Pattern, val default: Boolean
 
 @Serializable
 sealed class VariantKey {
-    @Serializable
+    @Serializable @SerialName("Identifier")
     data class Identifier(val name: String) : VariantKey()
-    @Serializable
+    @Serializable @SerialName("NumberLiteral")
     data class NumberLiteral(val value: String) : VariantKey()
 }
 

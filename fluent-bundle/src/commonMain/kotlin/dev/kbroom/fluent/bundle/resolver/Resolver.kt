@@ -300,20 +300,27 @@ class PatternResolver {
         }
         
         // Term not found - try as message reference
-        // For now, simplified - full implementation would handle term arguments
         val result = resolveMessageReference(id, attribute, scope)
         
-        // Transform None to term reference format
-        if (result is FluentValue.None) {
-            scope.errors.add(dev.kbroom.fluent.bundle.FluentError.ResolverError(
-                ResolverError.Reference(ReferenceKind.TERM, id)
-            ))
-            scope.untrackPlaceable(trackId)
-            return FluentValue.Str("{-$id}")
-        }
-        
+        // Transform to term reference format
         scope.untrackPlaceable(trackId)
-        return result
+        return when (result) {
+            is FluentValue.None -> {
+                scope.errors.add(dev.kbroom.fluent.bundle.FluentError.ResolverError(
+                    ResolverError.Reference(ReferenceKind.TERM, id)
+                ))
+                FluentValue.Str("{-$id}")
+            }
+            is FluentValue.Str -> {
+                // If result is a fallback reference like {missing}, convert to term format {-missing}
+                if (result.value.startsWith("{") && result.value.endsWith("}")) {
+                    FluentValue.Str("{-$id}")
+                } else {
+                    result
+                }
+            }
+            else -> result
+        }
     }
     
     /**
