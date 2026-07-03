@@ -90,7 +90,7 @@ class FluentParser {
         skipWhitespace()
         
         if (peek() != '=') {
-            errors.add(ParserError.Error(ErrorKind.MissingField, "Expected '=' after message identifier", Span(start, pos, source)))
+            errors.add(ParserError.Error(ErrorKind.ExpectedToken('='), "Expected '=' after message identifier", Span(start, pos, source)))
             return Entry.Junk(source.substring(start, minOf(pos + 10, source.length)))
         }
         pos++ // skip =
@@ -324,6 +324,15 @@ class FluentParser {
             skipWhitespace()
         }
         
+        // Check for default variant - if none found, report error
+        if (variants.isNotEmpty() && variants.none { it.default }) {
+            errors.add(ParserError.Error(
+                ErrorKind.MissingDefaultVariant,
+                "The select expression must have a default variant",
+                Span(0, 0, source)
+            ))
+        }
+        
         return variants
     }
     
@@ -473,16 +482,38 @@ class FluentParser {
     private fun parseStringLiteral(): InlineExpression.StringLiteral {
         pos++ // skip opening "
         val start = pos
+        var unterminated = false
         while (pos < source.length && peek() != '"') {
             if (peek() == '\\') {
                 pos++ // skip escape
-                if (pos < source.length) pos++ // skip escaped char
+                if (pos < source.length) {
+                    val ch = peek()
+                    // Check for valid escape sequences
+                    if (ch !in "u n r t \\ \" { } $") {
+                        errors.add(ParserError.Error(
+                            ErrorKind.UnknownEscapeSequence,
+                            "Unknown escape sequence: \\$ch",
+                            Span(start, pos, source)
+                        ))
+                    }
+                    pos++ // skip escaped char
+                }
             } else {
                 pos++
             }
         }
+        if (pos >= source.length) {
+            unterminated = true
+        }
         val value = source.substring(start, pos)
-        if (peek() == '"') pos++ // skip closing "
+        if (!unterminated && peek() == '"') pos++ // skip closing "
+        if (unterminated) {
+            errors.add(ParserError.Error(
+                ErrorKind.UnterminatedStringLiteral,
+                "Unterminated string literal",
+                Span(start, pos, source)
+            ))
+        }
         return InlineExpression.StringLiteral(value)
     }
     
@@ -500,6 +531,7 @@ class FluentParser {
         
         val positional = mutableListOf<InlineExpression>()
         val named = mutableListOf<NamedArgument>()
+        var seenNamed = false
         
         while (peek() != ')' && pos < source.length) {
             skipWhitespace()
@@ -514,7 +546,16 @@ class FluentParser {
                     skipWhitespace()
                     val value = parseInlineExpression()
                     named.add(NamedArgument(Identifier(name), value))
+                    seenNamed = true
                 } else {
+                    // Positional argument - check if named args came before
+                    if (seenNamed) {
+                        errors.add(ParserError.Error(
+                            ErrorKind.PositionalArgumentFollowsNamed,
+                            "Positional arguments must come before named arguments",
+                            Span(pos - name.length, pos, source)
+                        ))
+                    }
                     // Positional argument - need to check if it's a function call
                     skipWhitespace()
                     when (peek()) {
@@ -678,4 +719,35 @@ sealed class ErrorKind {
     }
 }
 
-data class Span(val start: Int, val end: Int, val sourceText: String)
+data class Span(val start: Int, val end: Int, val sourceText: String) {
+    /**
+     * Get line number (1-indexed) for start position.
+     */
+    fun line(): Int {
+        var line = 1
+        for (i in 0 until minOf(start, sourceText.length)) {
+            if (sourceText[i] == '\n') line++
+        }
+        return line
+    }
+    
+    /**
+     * Get column number (1-indexed) for start position.
+     */
+    fun column(): Int {
+        var col = 1
+        for (i in 0 until minOf(start, sourceText.length)) {
+            if (sourceText[i] == '\n') {
+                col = 1
+            } else {
+                col++
+            }
+        }
+        return col
+    }
+    
+    /**
+     * Get a user-friendly display string.
+     */
+    override fun toString(): String = "${line()}:${column()}"
+}
