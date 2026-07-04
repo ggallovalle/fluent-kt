@@ -1,12 +1,18 @@
 package dev.kbroom.fluent
 
-import dev.kbroom.fluent.bundle.*
-import dev.kbroom.fluent.syntax.*
-import dev.kbroom.fluent.syntax.parser.*
-import dev.kbroom.fluent.intl.*
-import dev.kbroom.fluent.fallback.*
-import dev.kbroom.fluent.resmgr.*
-import dev.kbroom.fluent.pseudo.*
+import dev.kbroom.fluent.bundle.FluentArgs
+import dev.kbroom.fluent.bundle.FluentBundle
+import dev.kbroom.fluent.bundle.FluentResource
+import dev.kbroom.fluent.bundle.fluentArgsOf
+import dev.kbroom.fluent.fallback.BundleGenerator
+import dev.kbroom.fluent.fallback.BundleIterator
+import dev.kbroom.fluent.fallback.SimpleLocalization
+import dev.kbroom.fluent.fallback.ResourceId
+import dev.kbroom.fluent.intl.LanguageIdentifier
+import dev.kbroom.fluent.pseudo.PseudoLocale
+import dev.kbroom.fluent.resmgr.ResourceManager
+import dev.kbroom.fluent.syntax.Resource
+import dev.kbroom.fluent.syntax.parser.FluentParser
 
 /**
  * Fluent-KT: Kotlin implementation of Project Fluent localization system.
@@ -33,9 +39,6 @@ import dev.kbroom.fluent.pseudo.*
  * ```
  */
 
-// Re-export commonly used types
-typealias Fluent = dev.kbroom.fluent.bundle.FluentBundle
-
 /**
  * Convenience function to parse an FTL string into a Resource.
  */
@@ -61,42 +64,8 @@ fun FluentBundle.formatWith(id: String, vararg args: Pair<String, Any?>): String
 /**
  * Create a Localization from a single bundle.
  */
-fun localization(bundle: FluentBundle): Localization<*, *, *> {
-    return Localization.simple(bundle)
-}
-
-/**
- * Create a Localization from a ResourceManager.
- */
-fun localization(
-    locales: List<LanguageIdentifier>,
-    resourceIds: List<ResourceId>,
-    resourceManager: ResourceManager
-): Localization<*, *, *> {
-    return object : Localization<SimpleGen, SimpleIter, SimpleAsyncIter>(SimpleGen(resourceManager, locales, resourceIds)) {}
-}
-
-private class SimpleGen(
-    val rm: ResourceManager,
-    val locales: List<LanguageIdentifier>,
-    val resourceIds: List<ResourceId>
-) : BundleGenerator {
-    override fun generateBundles(locales: List<LanguageIdentifier>, resourceIds: List<ResourceId>): BundleIterator {
-        return SimpleIter(listOf(rm.getBundle(locales, resourceIds)))
-    }
-    override suspend fun generateBundlesAsync(locales: List<LanguageIdentifier>, resourceIds: List<ResourceId>): AsyncBundleIterator {
-        return SimpleAsyncIter(listOf(rm.getBundle(locales, resourceIds)))
-    }
-}
-
-private class SimpleIter(val bundles: List<FluentBundle>) : BundleIterator {
-    private var i = 0
-    override fun next(): FluentBundle? = if (i < bundles.size) bundles[i++] else null
-}
-
-private class SimpleAsyncIter(val bundles: List<FluentBundle>) : AsyncBundleIterator {
-    private var i = 0
-    override suspend fun next(): FluentBundle? = if (i < bundles.size) bundles[i++] else null
+fun localization(bundle: FluentBundle): SimpleLocalization {
+    return SimpleLocalization(bundle)
 }
 
 /**

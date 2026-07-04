@@ -1,6 +1,15 @@
 package dev.kbroom.fluent.syntax
 
-import dev.kbroom.fluent.syntax.*
+import dev.kbroom.fluent.syntax.CallArguments
+import dev.kbroom.fluent.syntax.Entry
+import dev.kbroom.fluent.syntax.Expression
+import dev.kbroom.fluent.syntax.Identifier
+import dev.kbroom.fluent.syntax.InlineExpression
+import dev.kbroom.fluent.syntax.Pattern
+import dev.kbroom.fluent.syntax.PatternElement
+import dev.kbroom.fluent.syntax.Resource
+import dev.kbroom.fluent.syntax.VariantKey
+
 
 /**
  * Serializer options.
@@ -22,12 +31,10 @@ class Serializer {
     
     fun serialize(resource: Resource): String {
         val sb = StringBuilder()
-        
         for (entry in resource.body) {
             serializeEntry(entry, sb)
             sb.append("\n")
         }
-        
         return sb.toString()
     }
     
@@ -47,33 +54,31 @@ class Serializer {
     }
     
     private fun serializeMessage(msg: Entry.Message, sb: StringBuilder) {
-        msg.comment?.let { serializeComment(it, sb); sb.append("\n") }
-        
-        sb.append(msg.id.name)
-        sb.append(" = ")
-        
-        msg.value?.let { serializePattern(it, sb) }
-        
+        if (msg.comment != null) {
+            for (line in msg.comment.content) {
+                sb.append("# $line\n")
+            }
+        }
+        sb.append("${msg.id.name} = ")
+        if (msg.value != null) {
+            serializePattern(msg.value, sb)
+        }
         for (attr in msg.attributes) {
-            sb.append("\n    .")
-            sb.append(attr.id.name)
-            sb.append(" = ")
+            sb.append("\n    .${attr.id.name} = ")
             serializePattern(attr.value, sb)
         }
     }
     
     private fun serializeTerm(term: Entry.Term, sb: StringBuilder) {
-        term.comment?.let { serializeComment(it, sb); sb.append("\n") }
-        
-        sb.append("-")
-        sb.append(term.id.name)
-        sb.append(" = ")
+        if (term.comment != null) {
+            for (line in term.comment.content) {
+                sb.append("# $line\n")
+            }
+        }
+        sb.append("-${term.id.name} = ")
         serializePattern(term.value, sb)
-        
         for (attr in term.attributes) {
-            sb.append("\n    .")
-            sb.append(attr.id.name)
-            sb.append(" = ")
+            sb.append("\n    .${attr.id.name} = ")
             serializePattern(attr.value, sb)
         }
     }
@@ -94,18 +99,18 @@ class Serializer {
     private fun serializeExpression(expr: Expression, sb: StringBuilder) {
         when (expr) {
             is Expression.Select -> {
-                sb.append("$")
+                sb.append("\$")
                 serializeInlineExpression(expr.selector, sb)
-                sb.append(" {")
+                sb.append(" ->\n")
                 for (variant in expr.variants) {
-                    sb.append("\n    [")
-                    serializeVariantKey(variant.key, sb)
-                    sb.append("] ")
+                    sb.append("    [${variant.key}] ")
                     serializePattern(variant.value, sb)
+                    sb.append("\n")
                 }
-                sb.append("\n}")
             }
-            is Expression.Inline -> serializeInlineExpression(expr.expression, sb)
+            is Expression.Inline -> {
+                serializeInlineExpression(expr.expression, sb)
+            }
         }
     }
     
@@ -113,42 +118,51 @@ class Serializer {
         when (expr) {
             is InlineExpression.StringLiteral -> sb.append("\"${expr.value}\"")
             is InlineExpression.NumberLiteral -> sb.append(expr.value)
-            is InlineExpression.VariableReference -> sb.append("\$${expr.id.name}")
             is InlineExpression.MessageReference -> {
                 sb.append(expr.id.name)
-                expr.attribute?.let { sb.append(".${it.name}") }
+                if (expr.attribute != null) {
+                    sb.append(".${expr.attribute.name}")
+                }
             }
             is InlineExpression.TermReference -> {
-                sb.append("-")
-                sb.append(expr.id.name)
-                expr.attribute?.let { sb.append(".${it.name}") }
+                sb.append("-${expr.id.name}")
+                if (expr.attribute != null) {
+                    sb.append(".${expr.attribute.name}")
+                }
+                if (expr.arguments != null) {
+                    serializeCallArguments(expr.arguments, sb)
+                }
             }
+            is InlineExpression.VariableReference -> sb.append("\$${expr.id.name}")
             is InlineExpression.FunctionReference -> {
                 sb.append(expr.id.name)
-                sb.append("(")
                 serializeCallArguments(expr.arguments, sb)
-                sb.append(")")
             }
             is InlineExpression.Placeable -> {
+                sb.append("{ ")
                 serializeExpression(expr.expression, sb)
+                sb.append(" }")
             }
         }
     }
     
     private fun serializeCallArguments(args: CallArguments, sb: StringBuilder) {
-        var first = true
-        for (pos in args.positional) {
-            if (!first) sb.append(", ")
-            serializeInlineExpression(pos, sb)
-            first = false
+        sb.append("(")
+        val positional = args.positional.map {
+            when (it) {
+                is InlineExpression.StringLiteral -> "\"${it.value}\""
+                is InlineExpression.NumberLiteral -> it.value
+                is InlineExpression.VariableReference -> "\$${it.id.name}"
+                else -> "{...}"
+            }
         }
-        for (named in args.named) {
-            if (!first) sb.append(", ")
-            sb.append(named.name.name)
-            sb.append(": ")
-            serializeInlineExpression(named.value, sb)
-            first = false
+        sb.append(positional.joinToString(", "))
+        if (args.named.isNotEmpty()) {
+            if (positional.isNotEmpty()) sb.append(", ")
+            val named = args.named.map { "${it.name.name}: ${it.value}" }
+            sb.append(named.joinToString(", "))
         }
+        sb.append(")")
     }
     
     private fun serializeVariantKey(key: VariantKey, sb: StringBuilder) {
@@ -160,25 +174,19 @@ class Serializer {
     
     private fun serializeComment(comment: Entry.Comment, sb: StringBuilder) {
         for (line in comment.content) {
-            sb.append("# ")
-            sb.append(line)
-            sb.append("\n")
+            sb.append("# $line\n")
         }
     }
     
     private fun serializeGroupComment(comment: Entry.GroupComment, sb: StringBuilder) {
         for (line in comment.content) {
-            sb.append("## ")
-            sb.append(line)
-            sb.append("\n")
+            sb.append("## $line\n")
         }
     }
     
     private fun serializeResourceComment(comment: Entry.ResourceComment, sb: StringBuilder) {
         for (line in comment.content) {
-            sb.append("### ")
-            sb.append(line)
-            sb.append("\n")
+            sb.append("### $line\n")
         }
     }
 }

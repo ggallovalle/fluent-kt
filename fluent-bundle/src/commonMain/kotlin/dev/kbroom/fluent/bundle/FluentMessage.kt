@@ -1,6 +1,8 @@
 package dev.kbroom.fluent.bundle
 
-import dev.kbroom.fluent.syntax.*
+import dev.kbroom.fluent.syntax.Attribute
+import dev.kbroom.fluent.syntax.Entry
+import dev.kbroom.fluent.syntax.Pattern
 
 /**
  * FluentMessage provides a public view of a message.
@@ -45,9 +47,7 @@ class FluentTerm(private val term: Entry.Term) {
     fun getAttribute(name: String): Attribute? {
         return term.attributes.find { it.id.name == name }
     }
-    /**
-     * Get the value Pattern of an attribute by name.
-     */
+    
     fun getAttributeValue(name: String): Pattern? {
         return getAttribute(name)?.value
     }

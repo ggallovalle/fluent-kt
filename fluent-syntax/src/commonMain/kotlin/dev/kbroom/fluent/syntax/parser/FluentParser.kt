@@ -1,6 +1,17 @@
 package dev.kbroom.fluent.syntax.parser
+import dev.kbroom.fluent.syntax.Attribute
+import dev.kbroom.fluent.syntax.CallArguments
+import dev.kbroom.fluent.syntax.Entry
+import dev.kbroom.fluent.syntax.Expression
+import dev.kbroom.fluent.syntax.Identifier
+import dev.kbroom.fluent.syntax.InlineExpression
+import dev.kbroom.fluent.syntax.NamedArgument
+import dev.kbroom.fluent.syntax.Pattern
+import dev.kbroom.fluent.syntax.PatternElement
+import dev.kbroom.fluent.syntax.Resource
+import dev.kbroom.fluent.syntax.Variant
+import dev.kbroom.fluent.syntax.VariantKey
 
-import dev.kbroom.fluent.syntax.*
 
 /**
  * Full parser for Fluent Translation Lists (FTL).

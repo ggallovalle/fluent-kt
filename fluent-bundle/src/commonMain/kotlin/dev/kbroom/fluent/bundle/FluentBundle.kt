@@ -1,12 +1,15 @@
 package dev.kbroom.fluent.bundle
 
-import dev.kbroom.fluent.syntax.*
+import dev.kbroom.fluent.syntax.Entry
+import dev.kbroom.fluent.syntax.Pattern
+import dev.kbroom.fluent.syntax.PatternElement
 import dev.kbroom.fluent.bundle.resolver.PatternResolver
 import dev.kbroom.fluent.bundle.resolver.Scope
 import dev.kbroom.fluent.bundle.types.FluentNumber
 import dev.kbroom.fluent.bundle.types.FluentValue
 import dev.kbroom.fluent.intl.LanguageIdentifier
 import dev.kbroom.fluent.intl.IntlLangMemoizer
+
 /**
  * FluentBundle is the main runtime for localization.
  */
@@ -77,27 +80,24 @@ class FluentBundle(
         
         val pattern = entry.value ?: return false
         
-        // Check if pattern has actual content (not just comments or whitespace)
         val hasContent = pattern.elements.any { element ->
             when (element) {
-                is dev.kbroom.fluent.syntax.PatternElement.TextElement -> {
-                    // Skip if it looks like a comment (starts with #)
+                is PatternElement.TextElement -> {
                     val text = element.value.trim()
                     text.isNotEmpty() && !text.startsWith("#") && !text.startsWith("ERROR")
                 }
-                is dev.kbroom.fluent.syntax.PatternElement.Placeable -> true
+                is PatternElement.Placeable -> true
             }
         }
         
-        // Also check attributes
         val hasAttrContent = entry.attributes.any { attr ->
             attr.value.elements.any { element ->
                 when (element) {
-                    is dev.kbroom.fluent.syntax.PatternElement.TextElement -> {
+                    is PatternElement.TextElement -> {
                         val text = element.value.trim()
                         text.isNotEmpty() && !text.startsWith("#") && !text.startsWith("ERROR")
                     }
-                    is dev.kbroom.fluent.syntax.PatternElement.Placeable -> true
+                    is PatternElement.Placeable -> true
                 }
             }
         }
@@ -106,7 +106,6 @@ class FluentBundle(
     }
     
     fun getTerm(id: String): FluentTerm? {
-        // Strip leading dash if present (term references use -term)
         val termId = if (id.startsWith("-")) id.substring(1) else id
         val entry = entries[termId] ?: return null
         return when (entry) {
@@ -122,7 +121,6 @@ class FluentBundle(
     ): String {
         val scope = Scope(this, args, errors)
         val result = resolver.resolve(pattern, scope)
-        // Transform is now applied per element in the resolver
         return result
     }
     
@@ -133,7 +131,6 @@ class FluentBundle(
         val message = getMessage(id) ?: return null
         val pattern = message.value() ?: return null
         val errors = mutableListOf<FluentError>()
-        // Create a single scope and reuse it for all nested resolves - this enables cycle detection
         val scope = Scope(this, args, errors)
         return resolver.resolve(pattern, scope)
     }
@@ -167,7 +164,6 @@ class FluentBundle(
     }
     
     fun addBuiltins() {
-        // Capture references for use in closures
         val bundleLocales = locales
         val bundleMemoizer = memoizer
         
@@ -176,7 +172,6 @@ class FluentBundle(
                 val num = args[0]
                 when (num) {
                     is FluentValue.Number -> {
-                        // Try to use real Intl formatting
                         val locale = bundleLocales.firstOrNull()
                         val formatted = if (locale != null) {
                             val numberOptions = num.value.options
@@ -196,7 +191,6 @@ class FluentBundle(
                         if (formatted != null) {
                             FluentValue.Str(formatted)
                         } else {
-                            // Fallback to simple conversion
                             val v = num.value.value
                             val intValue = v.toLong()
                             if (v == intValue.toDouble() && intValue.toDouble() == v) {
@@ -208,7 +202,6 @@ class FluentBundle(
                     }
                     is FluentValue.Str -> {
                         val d = num.value.toDoubleOrNull() ?: 0.0
-                        // Format as integer if whole number
                         if (d == d.toLong().toDouble() && d.toLong().toDouble() == d) {
                             FluentValue.Str(d.toLong().toString())
                         } else {
@@ -263,7 +256,6 @@ class FluentBundle(
             }
         }
         
-        // LIST function - format a list with locale-aware conjunction
         addFunction("LIST") { args, _ ->
             if (args.isNotEmpty()) {
                 val locale = bundleLocales.firstOrNull() ?: LanguageIdentifier.parse("en")
@@ -281,7 +273,6 @@ class FluentBundle(
             }
         }
         
-        // CONCAT function - concatenates string arguments
         addFunction("CONCAT") { args, _ ->
             val sb = StringBuilder()
             for (arg in args) {
@@ -290,7 +281,6 @@ class FluentBundle(
             FluentValue.Str(sb.toString())
         }
         
-        // SUM function - adds numbers
         addFunction("SUM") { args, _ ->
             var sum = 0.0
             for (arg in args) {
@@ -303,9 +293,8 @@ class FluentBundle(
             FluentValue.Number(FluentNumber(sum))
         }
         
-        // IDENTITY function - returns first argument, or name as fallback
         addFunction("IDENTITY") { args, _ ->
-            args.firstOrNull() ?: FluentValue.Str("IDENTITY()")
+            args.firstOrNull() ?: FluentValue.None
         }
     }
     

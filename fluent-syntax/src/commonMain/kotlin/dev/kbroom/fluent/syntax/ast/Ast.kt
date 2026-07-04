@@ -84,3 +84,4 @@ data class CallArguments(val positional: List<InlineExpression> = emptyList(), v
 
 @Serializable
 data class NamedArgument(val name: Identifier, val value: InlineExpression)
+

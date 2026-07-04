@@ -1,6 +1,7 @@
 package dev.kbroom.fluent.bundle
 
-import dev.kbroom.fluent.syntax.*
+import dev.kbroom.fluent.syntax.Entry
+import dev.kbroom.fluent.syntax.Resource as AstResource
 import dev.kbroom.fluent.syntax.parser.FluentParser
 
 /**

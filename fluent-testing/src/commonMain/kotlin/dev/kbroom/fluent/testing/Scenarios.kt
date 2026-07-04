@@ -1,8 +1,9 @@
 package dev.kbroom.fluent.testing
 
-import dev.kbroom.fluent.bundle.*
+import dev.kbroom.fluent.bundle.FluentArgs
+import dev.kbroom.fluent.bundle.FluentBundle
+import dev.kbroom.fluent.bundle.FluentResource
 import dev.kbroom.fluent.intl.LanguageIdentifier
-import dev.kbroom.fluent.fallback.*
 
 /**
  * Test scenarios for localization.
