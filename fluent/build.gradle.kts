@@ -8,17 +8,15 @@ kotlin {
     linuxX64()
 
     sourceSets {
-        val commonMain by getting {
-            dependencies {
-                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
-                implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.8.0")
-                implementation(project(":fluent-bundle"))
-                implementation(project(":fluent-syntax"))
-                implementation(project(":intl-memoizer"))
-                implementation(project(":fluent-fallback"))
-                implementation(project(":fluent-resmgr"))
-                implementation(project(":fluent-pseudo"))
-            }
+        commonMain.dependencies {
+            implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
+            implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.8.0")
+            implementation(project(":fluent-bundle"))
+            implementation(project(":fluent-syntax"))
+            implementation(project(":intl-memoizer"))
+            implementation(project(":fluent-fallback"))
+            implementation(project(":fluent-resmgr"))
+            implementation(project(":fluent-pseudo"))
         }
     }
 }
