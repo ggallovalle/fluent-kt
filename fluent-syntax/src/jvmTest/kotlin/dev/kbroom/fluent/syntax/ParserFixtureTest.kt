@@ -1,6 +1,7 @@
 package dev.kbroom.fluent.syntax
 
 import dev.kbroom.fluent.testing.syntax.*
+import dev.kbroom.fluent.testing.bundle.*
 import dev.kbroom.fluent.syntax.parser.FluentParser
 import kotlinx.serialization.json.Json
 import kotlin.test.Test

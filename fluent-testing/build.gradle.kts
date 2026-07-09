@@ -16,6 +16,8 @@ kotlin {
             implementation(project(":fluent-fallback"))
             implementation(project(":fluent-resmgr"))
             implementation(project(":intl-memoizer"))
+        }
+        jvmMain.dependencies {
             implementation("com.charleskorn.kaml:kaml:0.70.0")
         }
         commonTest.dependencies {

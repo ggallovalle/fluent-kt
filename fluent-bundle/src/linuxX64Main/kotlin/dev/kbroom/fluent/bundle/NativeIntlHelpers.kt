@@ -2,14 +2,15 @@ package dev.kbroom.fluent.bundle
 
 import dev.kbroom.fluent.intl.LanguageIdentifier
 import dev.kbroom.fluent.intl.IntlLangMemoizer
-import kotlin.math.floor
+import kotlin.math.pow
+import kotlin.math.round as kround
 
 /**
  * LinuxX64 implementation of PlatformIntl.
  * Uses fallback basic formatting since full Intl isn't available on native.
  */
 actual object PlatformIntl {
-    
+
     actual fun formatNumber(
         value: Double,
         locale: LanguageIdentifier,
@@ -23,7 +24,7 @@ actual object PlatformIntl {
     ): String? {
         val fractionDigits = maximumFractionDigits ?: 2
         return when (style) {
-            "percent" -> "%.${fractionDigits}f%%".format(value * 100)
+            "percent" -> formatWithDigits(value * 100, fractionDigits) + "%"
             "currency" -> {
                 val sym = when (currency) {
                     "EUR" -> "€"
@@ -31,12 +32,26 @@ actual object PlatformIntl {
                     "JPY" -> "¥"
                     else -> currency ?: "$"
                 }
-                "$sym%.${fractionDigits}f".format(value)
+                sym + formatWithDigits(value, 2)
             }
-            else -> "%.${fractionDigits}f".format(value)
+            else -> formatWithDigits(value, fractionDigits)
         }
     }
-    
+
+    private fun formatWithDigits(value: Double, digits: Int): String {
+        val factor = 10.0.pow(digits.toDouble())
+        val scaled = (value * factor).toLong().toDouble() / factor
+        val str = scaled.toString()
+        return if ("." in str) {
+            val parts = str.split(".")
+            val intPart = parts[0]
+            val fracPart = parts[1].padEnd(digits, '0').take(digits)
+            "$intPart.$fracPart"
+        } else {
+            if (digits > 0) "$str." + "0".repeat(digits) else str
+        }
+    }
+
     actual fun formatDateTime(
         value: Long,
         locale: LanguageIdentifier,
@@ -46,11 +61,22 @@ actual object PlatformIntl {
         hour12: Boolean?,
         timeZone: String?
     ): String? {
-        val instant = java.time.Instant.ofEpochMilli(value)
-        val zoned = instant.atZone(java.time.ZoneId.systemDefault())
-        return zoned.toString()
+        // Basic epoch millis to date string as fallback
+        val secs = value / 1000
+        val days = secs / 86400
+        val year = 1970 + (days / 365).toInt()
+        val month = 1 + ((days % 365) / 30).toInt()
+        val day = 1 + ((days % 365) % 30).toInt()
+        return formatDate(year, month, day)
     }
-    
+
+    private fun formatDate(year: Int, month: Int, day: Int): String {
+        val y = year.toString().padStart(4, '0')
+        val m = month.toString().padStart(2, '0')
+        val d = day.toString().padStart(2, '0')
+        return "$y-$m-$d"
+    }
+
     actual fun formatDate(
         value: Long,
         locale: LanguageIdentifier,
@@ -60,7 +86,7 @@ actual object PlatformIntl {
     ): String? {
         return formatDateTime(value, locale, memoizer, dateStyle = style, timeStyle = null, hour12 = null, timeZone = timeZone)
     }
-    
+
     actual fun formatTime(
         value: Long,
         locale: LanguageIdentifier,
@@ -71,7 +97,7 @@ actual object PlatformIntl {
     ): String? {
         return formatDateTime(value, locale, memoizer, dateStyle = null, timeStyle = style, hour12 = hour12, timeZone = timeZone)
     }
-    
+
     actual fun formatList(
         values: List<String>,
         locale: LanguageIdentifier,
@@ -85,16 +111,16 @@ actual object PlatformIntl {
             val conjunction = if (type == "disjunction") " or " else " and "
             return values.joinToString(conjunction)
         }
-        
+
         val separator = ", "
         val finalSeparator = when (type) {
             "disjunction" -> ", or "
             else -> ", and "
         }
-        
+
         return values.dropLast(1).joinToString(separator) + finalSeparator + values.last()
     }
-    
+
     actual fun getPluralCategory(
         value: Double,
         locale: LanguageIdentifier,

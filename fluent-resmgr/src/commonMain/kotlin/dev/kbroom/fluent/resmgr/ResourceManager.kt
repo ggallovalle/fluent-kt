@@ -69,13 +69,7 @@ class ResourceManager(private val basePath: String) {
         return null
     }
     
-    protected open fun readFile(path: String): String? {
-        return try {
-            java.io.File(path).readText()
-        } catch (e: Exception) {
-            null
-        }
-    }
+    protected open fun readFile(path: String): String? = readFileImpl(path)
 }
 
 /**
@@ -130,7 +124,10 @@ class CallbackResourceManager(private val basePath: String) {
         return null
     }
     
-    protected open fun readFile(path: String): String? {
-        return try { java.io.File(path).readText() } catch (e: Exception) { null }
-    }
+    protected open fun readFile(path: String): String? = readFileImpl(path)
 }
+
+/**
+ * Platform-specific file reading implementation.
+ */
+expect fun readFileImpl(path: String): String?
