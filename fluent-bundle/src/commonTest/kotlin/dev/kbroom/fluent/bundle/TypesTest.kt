@@ -7,82 +7,72 @@ import dev.kbroom.fluent.intl.LanguageIdentifier
 import dev.kbroom.fluent.bundle.types.FluentValue
 import dev.kbroom.fluent.bundle.types.FluentNumber
 import dev.kbroom.fluent.bundle.types.fluentValueOf
+import de.infix.testBalloon.framework.core.testSuite
 
 /**
  * Tests for FluentValue types and conversions
  */
-class TypesTest {
-    
-    @Test
-    fun testFluentValueString() {
+val TypesTest by testSuite {
+
+    test("fluent value string") {
         val value = FluentValue.Str("hello")
         assertEquals("hello", value.asString())
     }
-    
-    @Test
-    fun testFluentValueNumber() {
+
+    test("fluent value number") {
         val value = FluentValue.Number(FluentNumber(42.0))
         assertEquals("42", value.asString())
     }
-    
-    @Test
-    fun testFluentValueNumberDecimal() {
+
+    test("fluent value number decimal") {
         val value = FluentValue.Number(FluentNumber(3.14))
         assertTrue(value.asString().startsWith("3.14"))
     }
-    
-    @Test
-    fun testFluentValueNone() {
+
+    test("fluent value none") {
         val value = FluentValue.None
         assertEquals("", value.asString())
     }
-    
-    @Test
-    fun testFluentNumberCreation() {
+
+    test("fluent number creation") {
         val num = FluentNumber(42.0)
         assertEquals(42.0, num.value)
     }
-    
-    @Test
-    fun testFluentArgsSet() {
+
+    test("fluent args set") {
         val args = FluentArgs()
         args.set("name", "World")
-        
+
         assertTrue(args.contains("name"))
     }
-    
-    @Test
-    fun testFluentArgsGet() {
+
+    test("fluent args get") {
         val args = FluentArgs()
         args.set("name", "World")
-        
+
         val value = args.get("name")
         assertTrue(value is FluentValue.Str)
     }
-    
-    @Test
-    fun testValueFromNumber() {
+
+    test("value from number") {
         val value = fluentValueOf(42)
         assertTrue(value is FluentValue.Number)
     }
-    
-    @Test
-    fun testValueFromString() {
+
+    test("value from string") {
         val value = fluentValueOf("test")
         assertTrue(value is FluentValue.Str)
     }
-    
-    @Test
-    fun testValueFromDouble() {
+
+    test("value from double") {
         val value = fluentValueOf(3.14)
         assertTrue(value is FluentValue.Number)
     }
-    
-    @Test
-    fun testOptionalValuePresent() {
+
+    test("optional value present") {
         val bundle = FluentBundle(listOf(LanguageIdentifier.parse("en")))
         bundle.addResource(FluentResource.tryNew("hello = Hello World").getOrThrow())
-        
+
         val message = bundle.getMessage("hello")
         assertTrue(message != null)
     }

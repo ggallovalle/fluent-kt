@@ -1,56 +1,53 @@
 package dev.kbroom.fluent.syntax
 
 import dev.kbroom.fluent.testing.syntax.*
-import dev.kbroom.fluent.testing.bundle.*
 import dev.kbroom.fluent.syntax.parser.FluentParser
 import kotlinx.serialization.json.Json
-import kotlin.test.Test
-import kotlin.test.fail
+import kotlin.test.assertTrue
+import kotlin.test.assertEquals
+import de.infix.testBalloon.framework.core.testSuite
 
 /**
  * Parser fixture tests - compare parsed AST against reference JSON fixtures.
  */
-class ParserFixtureTest {
-    
-    private val fixturesDir = "fixtures"
-    
-    private val json = Json {
+val ParserFixtureTest by testSuite {
+
+    val fixturesDir = "fixtures"
+
+    val json = Json {
         prettyPrint = false
         ignoreUnknownKeys = true
         encodeDefaults = true
     }
 
-    @Test
-    fun parseFixturesNoThrow() {
+    test("parse fixtures no throw") {
         val parser = FluentParser()
         val failures = mutableListOf<String>()
-        
+
         val fixtures = loadSyntaxFixtures(fixturesDir)
         for ((name, ftlSource) in fixtures) {
             if (name.contains("normalized")) continue
-            try { 
+            try {
                 parser.parse(ftlSource)
             } catch (e: Throwable) {
                 failures.add("$name: ${e.message}")
             }
         }
-        
-        if (failures.isNotEmpty()) {
-            fail("Parser threw on fixtures (${failures.size}):\n${failures.joinToString("\n")}")
-        }
+
+        val message = if (failures.isEmpty()) "" else "Parser threw on fixtures (${failures.size}):\n${failures.joinToString("\n")}"
+        assertTrue(failures.isEmpty(), message)
     }
 
-    @Test
-    fun parseFixturesCompare() {
+    test("parse fixtures compare") {
         val failures = mutableListOf<String>()
         val parser = FluentParser()
-        
+
         val fixtures = loadSyntaxFixtures(fixturesDir)
-        
+
         for ((name, ftlSource) in fixtures) {
             if (name.contains("normalized")) continue
             val isCrlf = name.contains("crlf")
-            
+
             try {
                 val ast = parser.parse(ftlSource)
                 val actualJson = json.encodeToString(ast)
@@ -60,9 +57,8 @@ class ParserFixtureTest {
                 failures.add("$name: ${e.message}")
             }
         }
-        
-        if (failures.isNotEmpty()) {
-            fail("Parser fixture failures (${failures.size}):\n${failures.joinToString("\n")}")
-        }
+
+        val message = if (failures.isEmpty()) "" else "Parser fixture failures (${failures.size}):\n${failures.joinToString("\n")}"
+        assertTrue(failures.isEmpty(), message)
     }
 }

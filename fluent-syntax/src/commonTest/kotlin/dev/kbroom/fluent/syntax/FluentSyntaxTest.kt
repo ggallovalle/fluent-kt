@@ -1,14 +1,13 @@
 package dev.kbroom.fluent.syntax
 
 import dev.kbroom.fluent.syntax.parser.FluentParser
-import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import de.infix.testBalloon.framework.core.testSuite
 
-class FluentSyntaxTest {
-    
-    @Test
-    fun testParseSimpleMessage() {
+val FluentSyntaxTest by testSuite {
+
+    test("parse simple message") {
         val parser = FluentParser()
         val source = "hello = Hello, World!"
         val resource = parser.parse(source)
@@ -17,26 +16,23 @@ class FluentSyntaxTest {
         assertEquals("hello", message.id.name)
         assertTrue(message.value != null)
     }
-    
-    @Test
-    fun testParseMultipleMessages() {
+
+    test("parse multiple messages") {
         val parser = FluentParser()
         val source = "hello = Hello\ngoodbye = Goodbye\nwelcome = Welcome!"
         val resource = parser.parse(source)
         assertEquals(3, resource.body.size)
     }
-    
-    @Test
-    fun testParseWithComments() {
+
+    test("parse with comments") {
         val parser = FluentParser()
         val source = "## This is a comment\nhello = Hello, World!"
         val resource = parser.parse(source)
         assertEquals(2, resource.body.size)
         assertTrue(resource.body[0] is Entry.GroupComment)
     }
-    
-    @Test
-    fun testParseRuntimeStripsComments() {
+
+    test("parse runtime strips comments") {
         val parser = FluentParser()
         val source = "## This is a comment\nhello = Hello, World!"
         val resource = parser.parseRuntime(source)
