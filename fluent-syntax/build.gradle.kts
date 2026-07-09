@@ -17,7 +17,6 @@ kotlin {
             implementation(project(":fluent-testing"))
         }
         getByName("jvmTest") {
-            dependsOn(getByName("commonTest"))
             dependencies {
                 implementation(kotlin("test"))
             }
