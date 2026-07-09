@@ -12,6 +12,8 @@ import dev.kbroom.fluent.syntax.PatternElement
 import dev.kbroom.fluent.syntax.Resource
 import dev.kbroom.fluent.syntax.Variant
 import dev.kbroom.fluent.syntax.VariantKey
+import dev.kbroom.fluent.syntax.DocComment
+import dev.kbroom.fluent.syntax.VariableDoc
 
 /**
  * A parser for Fluent Translation Lists (FTL).
@@ -54,24 +56,60 @@ class FluentParser {
         this.errors.clear()
         
         val body = mutableListOf<Entry>()
+        var bufferedComment: Entry? = null
         
         while (pos < source.length) {
+            // Check for blank line BEFORE skipping whitespace
+            if (peek() == '\n' || peek() == '\r') {
+                if (bufferedComment != null) {
+                    body.add(bufferedComment)
+                    bufferedComment = null
+                }
+                pos++
+                continue
+            }
+            
             skipWhitespace()
+            
+            // Check for blank line after whitespace
+            if (peek() == '\n' || peek() == '\r') {
+                if (bufferedComment != null) {
+                    body.add(bufferedComment)
+                    bufferedComment = null
+                }
+                pos++
+                continue
+            }
+            
             if (pos >= source.length) break
             
             // Check for comment
             when {
                 peek() == '#' -> {
-                    body.add(parseComment())
+                    bufferedComment = parseComment()
                 }
                 peek() == '-' -> {
-                    body.add(parseTerm())
+                    val termEntry = parseTerm()
+                    val boundTerm = bindDocCommentToTerm(termEntry, bufferedComment)
+                    body.add(boundTerm)
+                    bufferedComment = null
                 }
                 isIdentifierStart(peek()) -> {
-                    body.add(parseMessage())
+                    val messageEntry = parseMessage()
+                    if (messageEntry is Entry.Message) {
+                        val boundMessage = bindDocCommentToMessage(messageEntry, bufferedComment)
+                        body.add(boundMessage)
+                    } else {
+                        body.add(messageEntry)
+                    }
+                    bufferedComment = null
                 }
                 else -> {
                     // Junk
+                    if (bufferedComment != null) {
+                        body.add(bufferedComment)
+                        bufferedComment = null
+                    }
                     val start = pos
                     skipToNewline()
                     val content = source.substring(start, pos).trim()
@@ -82,42 +120,206 @@ class FluentParser {
             }
         }
         
+        // Flush any remaining buffered comment
+        if (bufferedComment != null) {
+            body.add(bufferedComment)
+        }
+        
         return Resource(body)
     }
     
     private fun parseComment(): Entry {
-        val start = pos
-        val content = mutableListOf<String>()
+        // Count leading hashes without consuming them
+        val hashCount = countHashesAt(pos)
         
-        // Skip the first #
-        if (peek() == '#') {
-            pos++
-            // Check for second #
-            if (peek() == '#') {
-                pos++
-                // Check for third #
-                if (peek() == '#') {
-                    pos++
-                    // Resource comment
-                    val line = parseCommentLine()
-                    return Entry.ResourceComment(listOf(line))
-                }
-                // Group comment
-                val line = parseCommentLine()
-                return Entry.GroupComment(listOf(line))
-            }
-            // Regular comment
-            val line = parseCommentLine()
-            return Entry.Comment(listOf(line))
+        if (hashCount == 3) {
+            // Resource comment (###) - advance past ###, skip one space, read line
+            pos += 3
+            if (peek() == ' ') pos++  // skip single space after ###
+            return Entry.ResourceComment(parseSingleCommentLine())
         }
         
-        return Entry.Comment(listOf(""))
+        // For # and ##, advance past the hashes
+        if (hashCount > 0) {
+            pos += hashCount
+        }
+        
+        val lines = mutableListOf<String>()
+        
+        // Read first line of comment
+        while (pos < source.length && (source[pos] == ' ' || source[pos] == '\t')) {
+            pos++
+        }
+        if (pos < source.length && source[pos] != '\n' && source[pos] != '\r') {
+            lines.add(parseCommentLine())
+        }
+        
+        // Now check for subsequent lines
+        // We need to check if the next line is a blank line (end of comment block)
+        // or if it's a continuation (same number of hashes)
+        while (pos < source.length) {
+            // Skip any newlines to get to the start of the next line
+            while (pos < source.length && (source[pos] == '\n' || source[pos] == '\r')) {
+                pos++
+            }
+            
+            if (pos >= source.length) break
+            
+            // Check for blank line (two or more consecutive newlines)
+            // After skipping initial newlines, check if we're at another newline
+            if (source[pos] == '\n' || source[pos] == '\r') {
+                break  // blank line found
+            }
+            
+            // Check if this is a continuation - must have same number of hashes
+            val lineHashCount = countHashesAt(pos)
+            if (lineHashCount != hashCount) {
+                break  // not a continuation
+            }
+            
+            // It's a continuation - skip past the hashes and whitespace
+            pos += hashCount
+            while (pos < source.length && (source[pos] == ' ' || source[pos] == '\t')) {
+                pos++
+            }
+            
+            // Read the line content (may be empty)
+            lines.add(parseCommentLine())
+        }
+        
+        val content = lines.joinToString("\n")
+        return when (hashCount) {
+            2 -> Entry.GroupComment(content)
+            else -> Entry.Comment(content)
+        }
+    }
+    
+    private fun countLeadingHashes(): Int {
+        var count = 0
+        while (pos < source.length && source[pos] == '#') {
+            count++
+            pos++
+        }
+        // Back up if we went too far (for hashCount == 3 check)
+        if (count > 1 && pos < source.length) {
+            // Check if this is actually ###
+            if (count == 3 || (count == 2 && source[pos] != '#')) {
+                // Valid # or ##, keep position
+            } else if (count == 1 && source[pos] == '#') {
+                // Actually ##, back up one
+                pos--
+            }
+        }
+        return if (count >= 3) 3 else count
+    }
+    
+    private fun countHashesAt(pos: Int): Int {
+        var count = 0
+        var i = pos
+        while (i < source.length && source[i] == '#') {
+            count++
+            i++
+        }
+        return count
     }
     
     private fun parseCommentLine(): String {
         val start = pos
         skipToNewline()
         return source.substring(start, pos).trim()
+    }
+    private fun parseSingleCommentLine(): String {
+        val start = pos
+        skipToNewline()
+        return source.substring(start, pos).trim()
+    }
+    
+    private fun bindDocCommentToMessage(message: Entry.Message, comment: Entry?): Entry.Message {
+        when (comment) {
+            is Entry.Comment -> {
+                val docComment = parseDocComment(comment.content)
+                return message.copy(docComment = docComment)
+            }
+            is Entry.GroupComment -> {
+                val docComment = parseDocComment(comment.content)
+                return message.copy(docComment = docComment)
+            }
+            else -> return message
+        }
+    }
+    
+    private fun bindDocCommentToTerm(term: Entry.Term, comment: Entry?): Entry.Term {
+        when (comment) {
+            is Entry.Comment -> {
+                val docComment = parseDocComment(comment.content)
+                return term.copy(docComment = docComment)
+            }
+            is Entry.GroupComment -> {
+                val docComment = parseDocComment(comment.content)
+                return term.copy(docComment = docComment)
+            }
+            else -> return term
+        }
+    }
+    
+    private fun parseDocComment(content: String): DocComment {
+        val lines = content.lines()
+        val variablesStart = lines.indexOfFirst { it.trim() == "Variables:" }
+        if (variablesStart == -1) {
+            return DocComment(description = content.trim())
+        }
+        val description = lines.subList(0, variablesStart).joinToString("\n").trim()
+        val variables = parseVariableDocs(lines.subList(variablesStart + 1, lines.size))
+        return DocComment(description = description, variables = variables)
+    }
+    
+    private fun parseVariableDocs(lines: List<String>): List<VariableDoc> {
+        val variables = mutableListOf<VariableDoc>()
+        var current: VariableDoc? = null
+        for (line in lines) {
+            val trimmed = line.trim()
+            if (trimmed.startsWith("$")) {
+                // new variable line
+                if (current != null) variables.add(current)
+                current = parseSingleVariableDoc(trimmed)
+            } else if (current != null && trimmed.isNotEmpty()) {
+                // continuation line — append to current description
+                current = current.copy(description = current.description + " " + trimmed)
+            }
+        }
+        if (current != null) variables.add(current)
+        return variables
+    }
+    
+    private fun parseSingleVariableDoc(line: String): VariableDoc {
+        // Remove leading $
+        val text = line.removePrefix("$").trim()
+        
+        // Try: $name {type, "default"} - desc
+        val braceMatch = Regex("""^(\w[\w-]*)\s*\{([^}]+)\}\s*[-:]\s*(.+)$""").matchEntire(text)
+        if (braceMatch != null) {
+            val (name, typeSpec, desc) = braceMatch.destructured
+            val type = typeSpec.substringBefore(",").trim()
+            val default = typeSpec.substringAfter(",").trim().removeSurrounding("\"")
+            return VariableDoc(name, type, desc.trim(), default)
+        }
+        
+        // Try: $name (Type): desc  OR  $name (Type) - desc
+        val parenMatch = Regex("""^(\w[\w-]*)\s*\((\w+)\)\s*[:\-–]\s*(.+)$""").matchEntire(text)
+        if (parenMatch != null) {
+            val (name, type, desc) = parenMatch.destructured
+            return VariableDoc(name, type, desc.trim())
+        }
+        
+        // Try: $name : desc  OR  $name - desc  (no type)
+        val noTypeMatch = Regex("""^(\w[\w-]*)\s*[:\-–]\s*(.+)$""").matchEntire(text)
+        if (noTypeMatch != null) {
+            val (name, desc) = noTypeMatch.destructured
+            return VariableDoc(name, "", desc.trim())
+        }
+        
+        // Fallback: treat whole line as name
+        return VariableDoc(text, "")
     }
     
     private fun parseMessage(): Entry {
@@ -643,7 +845,7 @@ class FluentParser {
         if (peek() != '#') return null
         pos++ // skip #
         val line = parseCommentLine()
-        return Entry.Comment(listOf(line))
+        return Entry.Comment(line)
     }
     
     private fun skipWhitespace() {

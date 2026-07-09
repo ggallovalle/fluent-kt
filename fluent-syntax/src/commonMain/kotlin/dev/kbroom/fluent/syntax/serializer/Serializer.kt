@@ -9,6 +9,8 @@ import dev.kbroom.fluent.syntax.Pattern
 import dev.kbroom.fluent.syntax.PatternElement
 import dev.kbroom.fluent.syntax.Resource
 import dev.kbroom.fluent.syntax.VariantKey
+import dev.kbroom.fluent.syntax.DocComment
+import dev.kbroom.fluent.syntax.VariableDoc
 /**
  * Options for the [Serializer].
  *
@@ -70,11 +72,21 @@ class Serializer(
     }
     
     private fun serializeMessage(msg: Entry.Message, sb: StringBuilder) {
-        msg.comment?.let { comment ->
-            for (line in comment.content) {
-                sb.append("# $line\n")
+        // Handle docComment first (overrides inline comment when present)
+        msg.docComment?.let { doc ->
+            serializeDocComment(doc, "#", sb)
+        }
+        
+        // Fall back to inline comment if no docComment
+        if (msg.docComment == null) {
+            msg.comment?.let { comment ->
+                val lines = comment.content.lines().filter { it.isNotEmpty() }
+                for (line in lines) {
+                    sb.append("# $line\n")
+                }
             }
         }
+        
         sb.append("${msg.id.name} = ")
         msg.value?.let { pattern ->
             serializePattern(pattern, sb)
@@ -86,11 +98,21 @@ class Serializer(
     }
     
     private fun serializeTerm(term: Entry.Term, sb: StringBuilder) {
-        term.comment?.let { comment ->
-            for (line in comment.content) {
-                sb.append("# $line\n")
+        // Handle docComment first
+        term.docComment?.let { doc ->
+            serializeDocComment(doc, "#", sb)
+        }
+        
+        // Fall back to inline comment if no docComment
+        if (term.docComment == null) {
+            term.comment?.let { comment ->
+                val lines = comment.content.lines().filter { it.isNotEmpty() }
+                for (line in lines) {
+                    sb.append("# $line\n")
+                }
             }
         }
+        
         sb.append("-${term.id.name} = ")
         serializePattern(term.value, sb)
         for (attr in term.attributes) {
@@ -181,21 +203,41 @@ class Serializer(
             is VariantKey.NumberLiteral -> sb.append(key.value)
         }
     }
+    private fun serializeDocComment(doc: DocComment, prefix: String, sb: StringBuilder) {
+        if (doc.description.isNotEmpty()) {
+            for (line in doc.description.lines()) {
+                sb.append("$prefix $line\n")
+            }
+        }
+        if (doc.variables.isNotEmpty()) {
+            sb.append("$prefix Variables:\n")
+            for (v in doc.variables) {
+                sb.append("$prefix   \$${v.name}")
+                if (v.type.isNotEmpty()) sb.append(" (${v.type})")
+                if (v.defaultValue.isNotEmpty()) sb.append(" {${v.type}, \"${v.defaultValue}\"}")
+                if (v.description.isNotEmpty()) sb.append(": ${v.description}")
+                sb.append("\n")
+            }
+        }
+    }
     
     private fun serializeComment(comment: Entry.Comment, sb: StringBuilder) {
-        for (line in comment.content) {
+        val lines = comment.content.lines().filter { it.isNotEmpty() }
+        for (line in lines) {
             sb.append("# $line\n")
         }
     }
     
     private fun serializeGroupComment(comment: Entry.GroupComment, sb: StringBuilder) {
-        for (line in comment.content) {
+        val lines = comment.content.lines().filter { it.isNotEmpty() }
+        for (line in lines) {
             sb.append("## $line\n")
         }
     }
     
     private fun serializeResourceComment(comment: Entry.ResourceComment, sb: StringBuilder) {
-        for (line in comment.content) {
+        val lines = comment.content.lines().filter { it.isNotEmpty() }
+        for (line in lines) {
             sb.append("### $line\n")
         }
     }

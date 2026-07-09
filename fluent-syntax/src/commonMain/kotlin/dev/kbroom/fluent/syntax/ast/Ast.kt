@@ -44,7 +44,8 @@ sealed class Entry {
         val id: Identifier,
         val value: Pattern? = null,
         val attributes: List<Attribute> = emptyList(),
-        val comment: Comment? = null
+        val comment: Comment? = null,
+        val docComment: DocComment? = null
     ) : Entry()
 
     /**
@@ -63,7 +64,8 @@ sealed class Entry {
         val id: Identifier,
         val value: Pattern,
         val attributes: List<Attribute> = emptyList(),
-        val comment: Comment? = null
+        val comment: Comment? = null,
+        val docComment: DocComment? = null
     ) : Entry()
 
     /**
@@ -72,7 +74,7 @@ sealed class Entry {
      * @property content The comment text, may span multiple lines if # is repeated
      */
     @Serializable @SerialName("Comment")
-    data class Comment(val content: List<String>) : Entry()
+    data class Comment(val content: String) : Entry()
 
     /**
      * A section comment (lines starting with ##).
@@ -80,7 +82,7 @@ sealed class Entry {
      * @property content The group comment text
      */
     @Serializable @SerialName("GroupComment")
-    data class GroupComment(val content: List<String>) : Entry()
+    data class GroupComment(val content: String) : Entry()
 
     /**
      * A file-level comment (lines starting with ###).
@@ -88,7 +90,7 @@ sealed class Entry {
      * @property content The resource comment text
      */
     @Serializable @SerialName("ResourceComment")
-    data class ResourceComment(val content: List<String>) : Entry()
+    data class ResourceComment(val content: String) : Entry()
 
     /**
      * Junk - content that could not be parsed as a valid entry.
@@ -101,6 +103,36 @@ sealed class Entry {
     @Serializable @SerialName("Junk")
     data class Junk(val content: String) : Entry()
 }
+/**
+ * A documentation comment associated with a message or term.
+ *
+ * DocComments contain a description and optionally documented variables
+ * for the message/term.
+ *
+ * @property description The main description text
+ * @property variables List of variable documentations
+ */
+@Serializable
+data class DocComment(
+    val description: String = "",
+    val variables: List<VariableDoc> = emptyList()
+)
+
+/**
+ * Documentation for a single variable in a message or term.
+ *
+ * @property name The variable name (without $ prefix)
+ * @property type The variable type (e.g., "String", "Number"), or empty if not specified
+ * @property description The variable description
+ * @property defaultValue Default value for the variable (e.g., "Arial" for {string, "Arial"})
+ */
+@Serializable
+data class VariableDoc(
+    val name: String,
+    val type: String = "",
+    val description: String = "",
+    val defaultValue: String = ""
+)
 
 /**
  * Represents an identifier (name) in Fluent.
