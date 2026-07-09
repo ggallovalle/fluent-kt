@@ -1,4 +1,4 @@
-package dev.kbroom.fluent.syntax
+package dev.kbroom.fluent.syntax.serializer
 
 import dev.kbroom.fluent.syntax.CallArguments
 import dev.kbroom.fluent.syntax.Entry
@@ -9,26 +9,42 @@ import dev.kbroom.fluent.syntax.Pattern
 import dev.kbroom.fluent.syntax.PatternElement
 import dev.kbroom.fluent.syntax.Resource
 import dev.kbroom.fluent.syntax.VariantKey
-
-
 /**
- * Serializer options.
+ * Options for the [Serializer].
+ *
+ * @property withJunk If true, serialized junk entries (unparseable content) in the output.
+ *                   Typically set to false for clean round-trip serialization.
  */
 data class SerializerOptions(
     val withJunk: Boolean = false
 )
 
 /**
- * Serialize an AST Resource back to FTL string.
+ * Serializes an AST [Resource] back to a Fluent Translation List (FTL) string.
+ *
+ * This is useful for debugging, logging, or round-tripping parsed content.
+ * The serializer produces canonical FTL formatting.
+ *
+ * @example
+ * ```kotlin
+ * val parser = FluentParser()
+ * val resource = parser.parse(source)
+ * val serializer = Serializer()
+ * val output = serializer.serialize(resource)
+ * ```
+ *
+ * @see SerializerOptions for serialization configuration
  */
-class Serializer {
+class Serializer(
+    private val options: SerializerOptions = SerializerOptions()
+) {
     
-    private val options: SerializerOptions
-    
-    constructor(options: SerializerOptions = SerializerOptions()) {
-        this.options = options
-    }
-    
+    /**
+     * Serializes the given [Resource] to an FTL string.
+     *
+     * @param resource The AST root to serialize
+     * @return A string in Fluent Translation List format
+     */
     fun serialize(resource: Resource): String {
         val sb = StringBuilder()
         for (entry in resource.body) {
@@ -54,14 +70,14 @@ class Serializer {
     }
     
     private fun serializeMessage(msg: Entry.Message, sb: StringBuilder) {
-        if (msg.comment != null) {
-            for (line in msg.comment.content) {
+        msg.comment?.let { comment ->
+            for (line in comment.content) {
                 sb.append("# $line\n")
             }
         }
         sb.append("${msg.id.name} = ")
-        if (msg.value != null) {
-            serializePattern(msg.value, sb)
+        msg.value?.let { pattern ->
+            serializePattern(pattern, sb)
         }
         for (attr in msg.attributes) {
             sb.append("\n    .${attr.id.name} = ")
@@ -70,8 +86,8 @@ class Serializer {
     }
     
     private fun serializeTerm(term: Entry.Term, sb: StringBuilder) {
-        if (term.comment != null) {
-            for (line in term.comment.content) {
+        term.comment?.let { comment ->
+            for (line in comment.content) {
                 sb.append("# $line\n")
             }
         }
@@ -120,18 +136,12 @@ class Serializer {
             is InlineExpression.NumberLiteral -> sb.append(expr.value)
             is InlineExpression.MessageReference -> {
                 sb.append(expr.id.name)
-                if (expr.attribute != null) {
-                    sb.append(".${expr.attribute.name}")
-                }
+                expr.attribute?.let { sb.append(".${it.name}") }
             }
             is InlineExpression.TermReference -> {
                 sb.append("-${expr.id.name}")
-                if (expr.attribute != null) {
-                    sb.append(".${expr.attribute.name}")
-                }
-                if (expr.arguments != null) {
-                    serializeCallArguments(expr.arguments, sb)
-                }
+                expr.attribute?.let { sb.append(".${it.name}") }
+                expr.arguments?.let { serializeCallArguments(it, sb) }
             }
             is InlineExpression.VariableReference -> sb.append("\$${expr.id.name}")
             is InlineExpression.FunctionReference -> {
@@ -191,6 +201,13 @@ class Serializer {
     }
 }
 
+/**
+ * Convenience function to serialize a Resource to an FTL string.
+ *
+ * @param resource The AST root to serialize
+ * @param options Serialization options
+ * @return A string in Fluent Translation List format
+ */
 fun serialize(resource: Resource, options: SerializerOptions = SerializerOptions()): String {
     return Serializer(options).serialize(resource)
 }

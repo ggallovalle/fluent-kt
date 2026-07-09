@@ -1,4 +1,5 @@
 package dev.kbroom.fluent.syntax.parser
+
 import dev.kbroom.fluent.syntax.Attribute
 import dev.kbroom.fluent.syntax.CallArguments
 import dev.kbroom.fluent.syntax.Entry
@@ -12,9 +13,34 @@ import dev.kbroom.fluent.syntax.Resource
 import dev.kbroom.fluent.syntax.Variant
 import dev.kbroom.fluent.syntax.VariantKey
 
-
 /**
- * Full parser for Fluent Translation Lists (FTL).
+ * A parser for Fluent Translation Lists (FTL).
+ *
+ * This parser converts FTL source text into an AST [Resource].
+ * It is a hand-written recursive descent parser that follows the
+ * Fluent specification.
+ *
+ * The parser collects errors during parsing in the [errors] list.
+ * Errors do not stop parsing - the parser is fault-tolerant and will
+ * mark problematic sections as [Entry.Junk].
+ *
+ * ## Usage
+ * ```kotlin
+ * val parser = FluentParser()
+ * val resource = parser.parse(ftlSource)
+ * for (error in parser.errors) {
+ *     // Handle parsing error
+ * }
+ * ```
+ *
+ * ## Error Handling
+ * The parser is designed to be fault-tolerant - it will continue parsing
+ * even after encountering errors, marking problematic sections as [Entry.Junk].
+ * This allows partial parsing results even when the input contains errors.
+ *
+ * @see Resource
+ * @see Entry
+ * @see ParserError
  */
 class FluentParser {
     

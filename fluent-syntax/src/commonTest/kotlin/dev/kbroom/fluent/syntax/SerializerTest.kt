@@ -3,7 +3,7 @@ package dev.kbroom.fluent.syntax
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import dev.kbroom.fluent.syntax.parser.FluentParser
-import dev.kbroom.fluent.syntax.serialize
+import dev.kbroom.fluent.syntax.serializer.serialize
 import de.infix.testBalloon.framework.core.testSuite
 
 /**
