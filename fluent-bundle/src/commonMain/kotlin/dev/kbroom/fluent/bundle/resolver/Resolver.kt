@@ -1,5 +1,8 @@
 package dev.kbroom.fluent.bundle.resolver
 
+import dev.kbroom.fluent.bundle.FluentArgs
+import dev.kbroom.fluent.bundle.FluentBundle
+import dev.kbroom.fluent.bundle.FluentError
 import dev.kbroom.fluent.syntax.CallArguments
 import dev.kbroom.fluent.syntax.Expression
 import dev.kbroom.fluent.syntax.Identifier
@@ -7,6 +10,7 @@ import dev.kbroom.fluent.syntax.InlineExpression
 import dev.kbroom.fluent.syntax.Pattern
 import dev.kbroom.fluent.syntax.PatternElement
 import dev.kbroom.fluent.syntax.Variant
+import dev.kbroom.fluent.syntax.VariantKey
 import dev.kbroom.fluent.bundle.types.FluentNumber
 import dev.kbroom.fluent.bundle.types.FluentValue
 
@@ -54,17 +58,16 @@ enum class ReferenceKind {
  * Scope holds the current resolution context.
  */
 class Scope(
-    val bundle: dev.kbroom.fluent.bundle.FluentBundle,
-    val args: dev.kbroom.fluent.bundle.FluentArgs?,
-    val errors: MutableList<dev.kbroom.fluent.bundle.FluentError> = mutableListOf(),
+    val bundle: FluentBundle,
+    val args: FluentArgs?,
+    val errors: MutableList<FluentError> = mutableListOf(),
     private val placeables: MutableSet<String> = mutableSetOf()
 ) {
     fun getPlaceables(): Set<String> = placeables.toSet()
-    private var dirty = false
     
     fun trackPlaceable(id: String): Boolean {
         if (placeables.contains(id)) {
-            errors.add(dev.kbroom.fluent.bundle.FluentError.ResolverError(ResolverError.Cyclic))
+            errors.add(FluentError.ResolverError(ResolverError.Cyclic))
             return false
         }
         placeables.add(id)
@@ -74,12 +77,23 @@ class Scope(
     fun untrackPlaceable(id: String) {
         placeables.remove(id)
     }
-    
-    fun setDirty() { dirty = true }
-    
-    fun isDirty(): Boolean = dirty
 }
-
+/**
+ * Resolves a Pattern to a formatted string.
+ *
+ * PatternResolver handles the core logic of converting a parsed Fluent Pattern
+ * into a string, including:
+ * - Resolving variable references ($var)
+ * - Resolving message and term references
+ * - Evaluating select expressions
+ * - Calling functions
+ * - Applying Unicode isolation marks for bidirectional text
+ * - Applying transform functions
+ *
+ * This is the main workhorse of the Fluent runtime.
+ *
+ * @see Scope for the resolution context
+ */
 class PatternResolver {
     
     fun resolve(pattern: Pattern, scope: Scope, applyTransform: Boolean = true): String {
@@ -104,12 +118,8 @@ class PatternResolver {
                         is FluentValue.None -> {
                             when (val expr = element.expression) {
                                 is Expression.Inline -> formatInlineReference(expr.expression)
-                                is Expression.Select -> "{...}"
+                                is Expression.Select -> resolveSelect(expr.selector, expr.variants, scope)
                             }
-                        }
-                        is FluentValue.Error -> {
-                            val errMsg = value.message
-                            "{$errMsg}"
                         }
                         else -> value.asString()
                     }
@@ -209,7 +219,7 @@ class PatternResolver {
         
         val message = scope.bundle.getMessage(id) ?: run {
             val refId = if (attribute != null) "$id.$attribute" else id
-            scope.errors.add(dev.kbroom.fluent.bundle.FluentError.ResolverError(
+            scope.errors.add(FluentError.ResolverError(
                 ResolverError.Reference(ReferenceKind.MESSAGE, refId)
             ))
             scope.untrackPlaceable(id)
@@ -222,7 +232,7 @@ class PatternResolver {
                 scope.untrackPlaceable(id)
                 return FluentValue.Pattern(attrValue)
             } else {
-                scope.errors.add(dev.kbroom.fluent.bundle.FluentError.ResolverError(
+                scope.errors.add(FluentError.ResolverError(
                     ResolverError.Reference(ReferenceKind.MESSAGE, "$id.$attribute")
                 ))
                 scope.untrackPlaceable(id)
@@ -238,7 +248,7 @@ class PatternResolver {
             return FluentValue.Str(result)
         }
         
-        scope.errors.add(dev.kbroom.fluent.bundle.FluentError.ResolverError(
+        scope.errors.add(FluentError.ResolverError(
             ResolverError.Reference(ReferenceKind.MESSAGE, id)
         ))
         scope.untrackPlaceable(id)
@@ -265,20 +275,20 @@ class PatternResolver {
             if (attribute != null && attrValue == null) {
                 return FluentValue.Str("{-$id.$attribute}")
             }
-            if (attribute != null) {
+            if (attribute != null && attrValue != null) {
                 val resolveScope = if (arguments != null && (arguments.positional.isNotEmpty() || arguments.named.isNotEmpty())) {
-                    val termArgs = dev.kbroom.fluent.bundle.FluentArgs()
+                    val termArgs = FluentArgs()
                     for (named in arguments.named) {
                         val argValue = resolveInlineExpression(named.value, scope)
                         termArgs.set(named.name.name, argValue)
                     }
                     Scope(scope.bundle, termArgs, scope.errors)
                 } else {
-                    val emptyArgs = dev.kbroom.fluent.bundle.FluentArgs()
+                    val emptyArgs = FluentArgs()
                     Scope(scope.bundle, emptyArgs, scope.errors)
                 }
                 scope.untrackPlaceable(trackId)
-                val resolvedAttr = resolve(attrValue!!, resolveScope)
+                val resolvedAttr = resolve(attrValue, resolveScope)
                 return FluentValue.Str(resolvedAttr)
             }
             
@@ -288,16 +298,16 @@ class PatternResolver {
                 (arguments.positional.isNotEmpty() || arguments.named.isNotEmpty())
             
             val resolveScope: Scope = when {
-                hasExplicitArgs -> {
-                    val termArgs = dev.kbroom.fluent.bundle.FluentArgs()
-                    for (named in arguments!!.named) {
+                hasExplicitArgs && arguments != null -> {
+                    val termArgs = FluentArgs()
+                    for (named in arguments.named) {
                         val argValue = resolveInlineExpression(named.value, scope)
                         termArgs.set(named.name.name, argValue)
                     }
                     Scope(scope.bundle, termArgs, scope.errors)
                 }
                 scope.args != null -> {
-                    val emptyArgs = dev.kbroom.fluent.bundle.FluentArgs()
+                    val emptyArgs = FluentArgs()
                     Scope(scope.bundle, emptyArgs, scope.errors)
                 }
                 else -> scope
@@ -312,7 +322,7 @@ class PatternResolver {
         scope.untrackPlaceable(trackId)
         return when (result) {
             is FluentValue.None -> {
-                scope.errors.add(dev.kbroom.fluent.bundle.FluentError.ResolverError(
+                scope.errors.add(FluentError.ResolverError(
                     ResolverError.Reference(ReferenceKind.TERM, id)
                 ))
                 FluentValue.Str("{-$id}")
@@ -332,7 +342,7 @@ class PatternResolver {
         val value = scope.args?.get(id)
         if (value != null) return value
         
-        scope.errors.add(dev.kbroom.fluent.bundle.FluentError.ResolverError(
+        scope.errors.add(FluentError.ResolverError(
             ResolverError.Reference(ReferenceKind.VARIABLE, id)
         ))
         return FluentValue.Str("{$$id}")
@@ -341,7 +351,7 @@ class PatternResolver {
     private fun resolveFunction(id: String, arguments: CallArguments, scope: Scope): FluentValue {
         val fn = scope.bundle.getFunction(id)
         if (fn == null) {
-            scope.errors.add(dev.kbroom.fluent.bundle.FluentError.ResolverError(
+            scope.errors.add(FluentError.ResolverError(
                 ResolverError.Reference(ReferenceKind.FUNCTION, id)
             ))
             return FluentValue.Str("{$id(...)}")
@@ -355,7 +365,10 @@ class PatternResolver {
         }
         
         return try {
-            fn(positionalArgs, argsObj as dev.kbroom.fluent.bundle.FluentArgs)
+            val fluentArgs = FluentArgs()
+            namedArgs.forEach { (name, value) -> fluentArgs.set(name, value) }
+            positionalArgs.forEach { fluentArgs.add(it) }
+            fn(positionalArgs, fluentArgs)
         } catch (e: Exception) {
             FluentValue.Error("Function error: ${e.message}")
         }
@@ -371,22 +384,23 @@ class PatternResolver {
         // Find matching variant
         val matchingVariant = variants.find { variant ->
             when (val key = variant.key) {
-                is dev.kbroom.fluent.syntax.VariantKey.Identifier -> {
+                is VariantKey.Identifier -> {
                     val selectorStr = selectorValue.asString()
                     key.name == selectorStr || 
                     (selectorValue is FluentValue.Number && key.name == selectorValue.value.value.toInt().toString())
                 }
-                is dev.kbroom.fluent.syntax.VariantKey.NumberLiteral -> {
+                is VariantKey.NumberLiteral -> {
                     selectorValue is FluentValue.Number && 
                     key.value == selectorValue.value.value.toInt().toString()
                 }
+                else -> false
             }
         }
         
         val selectedVariant = matchingVariant ?: variants.find { it.default }
         
         if (selectedVariant == null) {
-            scope.errors.add(dev.kbroom.fluent.bundle.FluentError.ResolverError(ResolverError.MissingDefault))
+            scope.errors.add(FluentError.ResolverError(ResolverError.MissingDefault))
             return FluentValue.None
         }
         
