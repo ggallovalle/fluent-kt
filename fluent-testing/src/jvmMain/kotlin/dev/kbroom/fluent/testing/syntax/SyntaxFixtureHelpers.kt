@@ -56,7 +56,7 @@ fun loadExpectedJson(filename: String, dir: String): String {
 
     val jsonName = filename.removeSuffix(".ftl") + ".json"
     val resourceUrl = loader.getResource("$dir/$jsonName")
-        ?: throw IllegalStateException("Expected JSON fixture not found: $dir/$jsonName")
+        ?: error("Expected JSON fixture not found: $dir/$jsonName")
 
     return resourceUrl.readText()
 }
@@ -85,22 +85,21 @@ private fun validateResource(element: JsonElement): String {
  * Uses lenient comparison: just check the parser doesn't crash and produces valid output.
  */
 fun assertAstEquals(expected: String, actual: String, isCrlf: Boolean) {
+    // Decode the expected fixture to confirm it parses; the function does not
+    // compare structurally (it predates a structural-equivalence implementation).
     val expText = if (isCrlf) expected.replace("\r\n", "\n") else expected
+    json.decodeFromString(JsonElement.serializer(), expText)
 
-    val expElement: JsonElement = json.decodeFromString(JsonElement.serializer(), expText)
     val actElement: JsonElement = json.decodeFromString(JsonElement.serializer(), actual)
 
-    // Validate actual output is valid
-    val actDesc = validateResource(actElement)
+    // Validate actual output is valid; throw via validateResource on failure.
+    validateResource(actElement)
 
-    // Also check that we can parse - accept empty resources as valid
+    // Accept empty resources as valid.
     if (actElement is JsonObject) {
         val body = actElement["body"]
-        if (body is JsonArray) {
-            // Parser is working - we have a valid AST (including empty ones)
-            return
-        }
+        if (body is JsonArray) return
     }
 
-    throw AssertionError("Parser produced invalid AST: $actDesc")
+    throw AssertionError("Parser produced invalid AST")
 }

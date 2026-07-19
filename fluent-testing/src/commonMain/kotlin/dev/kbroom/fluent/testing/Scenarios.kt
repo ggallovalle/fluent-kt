@@ -197,7 +197,7 @@ private fun runLocaleScenario(
 
 private fun buildBundleForScenario(scenario: Scenario, locale: LanguageIdentifier): FluentBundle {
     val bundle = FluentBundle(listOf(locale))
-    val ftl = scenario.resources[locale.toTag()] ?: ""
+    val ftl = scenario.resources[locale.toTag()].orEmpty()
     if (ftl.isNotEmpty()) {
         val resource = FluentResource.tryNew(ftl).getOrNull()
         if (resource != null) bundle.addResource(resource)

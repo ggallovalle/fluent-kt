@@ -1,8 +1,6 @@
 package dev.kbroom.fluent.testing
 
-import dev.kbroom.fluent.fallback.ResourceId
 import dev.kbroom.fluent.intl.LanguageIdentifier
-import dev.kbroom.fluent.resmgr.ResourceManager
 
 /**
  * FileSource - represents a directory of FTL files organized by locale.
@@ -26,22 +24,5 @@ data class ResourceIdWithType(val id: String, val type: ResourceType = ResourceT
 }
 
 fun String.toResourceId(type: ResourceType = ResourceType.Required): ResourceIdWithType = ResourceIdWithType(this, type)
-
-class TestEnvironment(private val basePath: String, private val fileSources: List<FileSource>) {
-    private val resourceManager = ResourceManager(basePath)
-
-    fun getBundles(
-        locales: List<LanguageIdentifier>,
-        resourceIds: List<ResourceIdWithType>,
-    ): Map<LanguageIdentifier, dev.kbroom.fluent.bundle.FluentBundle> = resourceManager.getBundles(
-        locales,
-        resourceIds.map { ResourceId(it.id) },
-    )
-
-    fun getBundle(
-        locales: List<LanguageIdentifier>,
-        resourceIds: List<ResourceIdWithType>,
-    ): dev.kbroom.fluent.bundle.FluentBundle = resourceManager.getBundle(locales, resourceIds.map { ResourceId(it.id) })
-}
 
 fun fileSource(name: String, path: String, locales: List<String>) = FileSource(name, path, locales)

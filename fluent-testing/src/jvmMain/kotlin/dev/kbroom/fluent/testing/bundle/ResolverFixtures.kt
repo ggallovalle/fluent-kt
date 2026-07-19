@@ -89,12 +89,12 @@ data class TestAssert(
  * YAML: `num: 3` becomes "3", `arg: foo` becomes "foo"
  */
 @Serializable
-sealed class TestArgValue {
+sealed interface TestArgValue {
     @Serializable
-    data class StringValue(val value: String) : TestArgValue()
+    data class StringValue(val value: String) : TestArgValue
 
     @Serializable
-    data class NumberValue(val value: Double) : TestArgValue()
+    data class NumberValue(val value: Double) : TestArgValue
 
     companion object {
         fun fromString(v: String) = StringValue(v)
@@ -116,7 +116,7 @@ sealed class TestArgValue {
                 }
             }
 
-            else -> StringValue(v?.toString() ?: "")
+            else -> StringValue(v?.toString().orEmpty())
         }
     }
 }
