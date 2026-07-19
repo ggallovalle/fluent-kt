@@ -5,6 +5,7 @@ import dev.kbroom.fluent.bundle.FluentBundle
 import dev.kbroom.fluent.bundle.FluentError
 import dev.kbroom.fluent.bundle.FluentMessage
 import dev.kbroom.fluent.bundle.FluentTerm
+import dev.kbroom.fluent.bundle.IntlHelpers
 import dev.kbroom.fluent.bundle.types.FluentNumber
 import dev.kbroom.fluent.bundle.types.FluentValue
 import dev.kbroom.fluent.syntax.CallArguments
@@ -307,10 +308,17 @@ class PatternResolver {
     private fun resolveTermBody(term: FluentTerm, arguments: CallArguments?, scope: Scope): FluentValue {
         val hasExplicitArgs = arguments != null &&
             (arguments.positional.isNotEmpty() || arguments.named.isNotEmpty())
+        // Use a separate errors list for term resolution — missing variables in
+        // terms should not propagate as errors to the caller (the Fluent spec
+        // says terms are self-contained scopes).
+        val termErrors = mutableListOf<FluentError>()
         val resolveScope: Scope = when {
-            hasExplicitArgs -> scopeForTerm(arguments, scope)
-            scope.args != null -> Scope(scope.bundle, FluentArgs(), scope.errors)
-            else -> scope
+            hasExplicitArgs -> {
+                val s = scopeForTerm(arguments, scope)
+                Scope(s.bundle, s.args, termErrors)
+            }
+            scope.args != null -> Scope(scope.bundle, FluentArgs(), termErrors)
+            else -> Scope(scope.bundle, scope.args, termErrors)
         }
         return FluentValue.Str(resolve(term.value(), resolveScope))
     }
@@ -395,7 +403,18 @@ class PatternResolver {
                     val selectorStr = selectorValue.asString()
                     val numberKey = (selectorValue as? FluentValue.Number)
                         ?.value?.value?.toInt()?.toString()
-                    key.name == selectorStr || (numberKey != null && key.name == numberKey)
+                    val pluralCategory = if (selectorValue is FluentValue.Number) {
+                        IntlHelpers.getPluralCategory(
+                            selectorValue.value.value,
+                            scope.bundle.locales.first(),
+                            scope.bundle.memoizer(),
+                        )
+                    } else {
+                        null
+                    }
+                    key.name == selectorStr ||
+                        (numberKey != null && key.name == numberKey) ||
+                        (pluralCategory != null && key.name == pluralCategory)
                 }
 
                 is VariantKey.NumberLiteral -> {
