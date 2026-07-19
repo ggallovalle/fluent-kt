@@ -1,9 +1,9 @@
 package dev.kbroom.fluent.intl
 
+import de.infix.testBalloon.framework.core.testSuite
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
-import de.infix.testBalloon.framework.core.testSuite
 
 val LanguageIdentifierTest by testSuite {
     test("parse: language only") {

@@ -1,10 +1,10 @@
 package dev.kbroom.fluent.syntax
 
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
+import de.infix.testBalloon.framework.core.testSuite
 import dev.kbroom.fluent.syntax.parser.FluentParser
 import dev.kbroom.fluent.syntax.serializer.serialize
-import de.infix.testBalloon.framework.core.testSuite
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /**
  * Tests for AST to FTL serialization

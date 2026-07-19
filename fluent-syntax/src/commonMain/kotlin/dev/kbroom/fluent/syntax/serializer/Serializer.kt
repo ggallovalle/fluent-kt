@@ -4,12 +4,10 @@ import dev.kbroom.fluent.syntax.CallArguments
 import dev.kbroom.fluent.syntax.DocComment
 import dev.kbroom.fluent.syntax.Entry
 import dev.kbroom.fluent.syntax.Expression
-import dev.kbroom.fluent.syntax.Identifier
 import dev.kbroom.fluent.syntax.InlineExpression
 import dev.kbroom.fluent.syntax.Pattern
 import dev.kbroom.fluent.syntax.PatternElement
 import dev.kbroom.fluent.syntax.Resource
-import dev.kbroom.fluent.syntax.VariantKey
 /**
  * Options for the [Serializer].
  *
@@ -205,12 +203,6 @@ class Serializer(private val options: SerializerOptions = SerializerOptions()) {
         sb.append(")")
     }
 
-    private fun serializeVariantKey(key: VariantKey, sb: StringBuilder) {
-        when (key) {
-            is VariantKey.Identifier -> sb.append(key.name)
-            is VariantKey.NumberLiteral -> sb.append(key.value)
-        }
-    }
     private fun serializeDocComment(doc: DocComment, prefix: String, sb: StringBuilder) {
         if (doc.description.isNotEmpty()) {
             for (line in doc.description.lines()) {

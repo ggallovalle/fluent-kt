@@ -12,6 +12,7 @@ import java.text.NumberFormat as JNumberFormat
 /**
  * JVM implementation of PlatformIntl.
  */
+@Suppress("LongParameterList")
 actual object PlatformIntl {
 
     actual fun formatNumber(
@@ -134,38 +135,39 @@ actual object PlatformIntl {
     }
 
     actual fun getPluralCategory(value: Double, locale: LanguageIdentifier, memoizer: IntlLangMemoizer): String {
-        // Simple plural category implementation
         val lang = locale.language
         return when (lang) {
-            "en" -> if (value == 1.0) "one" else "other"
+            "en" -> pluralCategoryOneOther(value)
+            "fr", "de", "es", "it", "pt" -> pluralCategoryOneOther(value)
+            "ru", "pl", "uk" -> pluralCategorySlavic(value)
+            "ar" -> pluralCategoryArabic(value)
+            else -> pluralCategoryOneOther(value)
+        }
+    }
 
-            "fr", "de", "es", "it", "pt" -> if (value == 1.0) "one" else "other"
+    private fun pluralCategoryOneOther(value: Double): String = if (value == 1.0) "one" else "other"
 
-            "ru", "pl", "uk" -> {
-                val n = value.toLong()
-                val mod10 = (n % 10).toInt()
-                val mod100 = (n % 100).toInt()
-                when {
-                    mod10 == 1 && mod100 != 11 -> "one"
-                    mod10 in 2..4 && (mod100 < 12 || mod100 > 14) -> "few"
-                    mod10 == 0 || mod10 in 5..9 || mod100 in 11..14 -> "many"
-                    else -> "other"
-                }
-            }
+    private fun pluralCategorySlavic(value: Double): String {
+        val n = value.toLong()
+        val mod10 = (n % 10).toInt()
+        val mod100 = (n % 100).toInt()
+        return when {
+            mod10 == 1 && mod100 != 11 -> "one"
+            mod10 in 2..4 && (mod100 < 12 || mod100 > 14) -> "few"
+            mod10 == 0 || mod10 in 5..9 || mod100 in 11..14 -> "many"
+            else -> "other"
+        }
+    }
 
-            "ar" -> {
-                val n = value.toLong()
-                when (n) {
-                    0L -> "zero"
-                    1L -> "one"
-                    2L -> "two"
-                    in 3..10 -> "few"
-                    in 11..99 -> "many"
-                    else -> "other"
-                }
-            }
-
-            else -> if (value == 1.0) "one" else "other"
+    private fun pluralCategoryArabic(value: Double): String {
+        val n = value.toLong()
+        return when (n) {
+            0L -> "zero"
+            1L -> "one"
+            2L -> "two"
+            in 3..10 -> "few"
+            in 11..99 -> "many"
+            else -> "other"
         }
     }
 }

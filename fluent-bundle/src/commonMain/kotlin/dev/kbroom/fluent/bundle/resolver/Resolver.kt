@@ -19,6 +19,7 @@ import dev.kbroom.fluent.syntax.VariantKey
 /**
  * Errors that can occur during resolution.
  */
+@Suppress("AbstractClassCanBeInterface")
 sealed class ResolverError {
     /**
      * Reference to an unknown message or term.
@@ -373,10 +374,6 @@ class PatternResolver {
 
         val positionalArgs = arguments.positional.map { resolveInlineExpression(it, scope) }
         val namedArgs = arguments.named.associate { it.name.name to resolveInlineExpression(it.value, scope) }
-
-        val argsObj = object {
-            operator fun get(name: String): FluentValue? = namedArgs[name]
-        }
 
         return try {
             val fluentArgs = FluentArgs()

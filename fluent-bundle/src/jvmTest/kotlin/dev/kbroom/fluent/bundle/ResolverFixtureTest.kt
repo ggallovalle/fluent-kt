@@ -1,11 +1,11 @@
 package dev.kbroom.fluent.bundle
 
-import dev.kbroom.fluent.testing.bundle.*
-import dev.kbroom.fluent.intl.LanguageIdentifier
+import de.infix.testBalloon.framework.core.testSuite
 import dev.kbroom.fluent.bundle.FluentArgs
 import dev.kbroom.fluent.bundle.types.FluentValue
+import dev.kbroom.fluent.intl.LanguageIdentifier
+import dev.kbroom.fluent.testing.bundle.*
 import kotlin.test.assertTrue
-import de.infix.testBalloon.framework.core.testSuite
 
 /**
  * Resolver fixture tests - compare bundle formatting against reference YAML fixtures.
@@ -39,7 +39,13 @@ val ResolverFixtureTest by testSuite {
             }
         }
 
-        val message = if (failures.isEmpty()) "" else "Resolver fixture failures (${failures.size}):\n${failures.joinToString("\n").take(2000)}"
+        val message = if (failures.isEmpty()) {
+            ""
+        } else {
+            "Resolver fixture failures (${failures.size}):\n${failures.joinToString(
+            "\n",
+        ).take(2000)}"
+        }
         assertTrue(failures.isEmpty(), message)
     }
 }
@@ -72,7 +78,12 @@ private fun testTestHelper(test: TestCase, defaults: TestDefaults?, scope: TestS
     }
 }
 
-private fun testAssertHelper(assertion: TestAssert, bundles: Map<String, FluentBundle>, defaults: TestDefaults?, testName: String) {
+private fun testAssertHelper(
+    assertion: TestAssert,
+    bundles: Map<String, FluentBundle>,
+    defaults: TestDefaults?,
+    testName: String,
+) {
     val bundle = if (assertion.bundle != null) {
         bundles[assertion.bundle] ?: throw RuntimeException("Bundle not found: ${assertion.bundle}")
     } else {
@@ -115,24 +126,24 @@ private fun testAssertHelper(assertion: TestAssert, bundles: Map<String, FluentB
                 throw RuntimeException("Value mismatch: expected '${assertion.value}' but got '$value'")
             }
         } catch (e: Throwable) {
-            println("DEBUG testAssert EXCEPTION: assertion.id=${assertion.id}, error=${e.message}, stack=${e.stackTrace?.firstOrNull()}")
+            println(
+                "DEBUG testAssert EXCEPTION: assertion.id=${assertion.id}, error=${e.message}, stack=${e.stackTrace?.firstOrNull()}",
+            )
             throw e
         }
     }
 }
 
-private fun formatPatternHelper(pattern: dev.kbroom.fluent.syntax.Pattern, bundle: FluentBundle): String {
-    return bundle.formatPattern(pattern)
-}
+private fun formatPatternHelper(pattern: dev.kbroom.fluent.syntax.Pattern, bundle: FluentBundle): String =
+    bundle.formatPattern(pattern)
 
 /**
  * Scope tracks hierarchical test context.
  */
 class TestScope(private val levels: List<ScopeLevel> = emptyList()) {
 
-    fun push(name: String, resources: List<TestResource>, bundles: List<TestBundle>): TestScope {
-        return TestScope(levels + ScopeLevel(name, resources, bundles))
-    }
+    fun push(name: String, resources: List<TestResource>, bundles: List<TestBundle>): TestScope =
+        TestScope(levels + ScopeLevel(name, resources, bundles))
 
     fun getBundles(defaults: TestDefaults?): Map<String, FluentBundle> {
         if (levels.isEmpty()) {
@@ -161,11 +172,7 @@ class TestScope(private val levels: List<ScopeLevel> = emptyList()) {
         return bundles
     }
 
-    private fun createBundle(
-        config: TestBundle?,
-        defaults: TestDefaults?,
-        extraResources: List<String>
-    ): FluentBundle {
+    private fun createBundle(config: TestBundle?, defaults: TestDefaults?, extraResources: List<String>): FluentBundle {
         val locales = config?.locales
             ?: defaults?.bundle?.locales
             ?: listOf("en")
@@ -205,8 +212,4 @@ class TestScope(private val levels: List<ScopeLevel> = emptyList()) {
     }
 }
 
-data class ScopeLevel(
-    val name: String,
-    val resources: List<TestResource>,
-    val bundles: List<TestBundle>
-)
+data class ScopeLevel(val name: String, val resources: List<TestResource>, val bundles: List<TestBundle>)

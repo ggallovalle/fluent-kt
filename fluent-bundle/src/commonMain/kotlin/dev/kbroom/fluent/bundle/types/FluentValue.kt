@@ -63,7 +63,7 @@ sealed class FluentValue {
 
         is Custom -> value.asString()
 
-        is Pattern -> throw IllegalStateException("Pattern should be resolved before asString()")
+        is Pattern -> error("Pattern should be resolved before asString()")
 
         is None -> ""
 

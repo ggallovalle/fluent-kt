@@ -1,9 +1,9 @@
 package dev.kbroom.fluent.bundle
 
+import de.infix.testBalloon.framework.core.testSuite
+import dev.kbroom.fluent.intl.LanguageIdentifier
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
-import dev.kbroom.fluent.intl.LanguageIdentifier
-import de.infix.testBalloon.framework.core.testSuite
 
 /**
  * Tests for FluentBundle operations

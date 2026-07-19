@@ -1,8 +1,8 @@
 package dev.kbroom.fluent.pseudo
 
+import de.infix.testBalloon.framework.core.testSuite
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
-import de.infix.testBalloon.framework.core.testSuite
 
 /**
  * Tests for PseudoLocale pseudolocalization

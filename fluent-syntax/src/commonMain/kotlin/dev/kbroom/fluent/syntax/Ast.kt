@@ -27,6 +27,7 @@ data class Resource(val body: List<Entry>)
  * - [Junk] - Content that could not be parsed
  */
 @Serializable
+@Suppress("AbstractClassCanBeInterface")
 sealed class Entry {
     /**
      * A message entry - the primary building block of Fluent translations.
@@ -165,6 +166,7 @@ data class Pattern(val elements: List<PatternElement>)
  * Pattern elements are either literal text or placeables (expressions).
  */
 @Serializable
+@Suppress("AbstractClassCanBeInterface")
 sealed class PatternElement {
     /**
      * A literal text element.
@@ -205,6 +207,7 @@ data class Attribute(val id: Identifier, val value: Pattern)
  * that choose between variants based on a selector value.
  */
 @Serializable
+@Suppress("AbstractClassCanBeInterface")
 sealed class Expression {
     /**
      * A select expression - chooses between variants based on a selector.
@@ -235,6 +238,7 @@ sealed class Expression {
  * They cannot contain select expressions.
  */
 @Serializable
+@Suppress("AbstractClassCanBeInterface")
 sealed class InlineExpression {
     /** A string literal value. */
     @Serializable
@@ -316,6 +320,7 @@ data class Variant(val key: VariantKey, val value: Pattern, val default: Boolean
  * The key for a variant in a select expression.
  */
 @Serializable
+@Suppress("AbstractClassCanBeInterface")
 sealed class VariantKey {
     /** An identifier-based variant key (e.g., [one], [few], [many]). */
     @Serializable

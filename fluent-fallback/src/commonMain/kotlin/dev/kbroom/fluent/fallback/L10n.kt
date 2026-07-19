@@ -23,6 +23,7 @@ data class L10nAttribute(val key: L10nKey, val value: String)
 /**
  * Errors from localization operations.
  */
+@Suppress("AbstractClassCanBeInterface")
 sealed class L10nError {
     data class MissingBundle(val locale: LanguageIdentifier, val resourceId: ResourceId) : L10nError()
     data class MissingResource(val resourceId: ResourceId, val locales: List<LanguageIdentifier>) : L10nError()
@@ -181,7 +182,6 @@ open class Localization<G, P, A>(
      */
     fun formatAttribute(id: String, attribute: String, args: FluentArgs? = null): String? {
         for (bundle in currentBundles) {
-            val message = bundle.getMessage(id) ?: continue
             // Would need to add attribute formatting to FluentMessage
             val result = bundle.format("$id.$attribute", args)
             if (result != null) return result
@@ -244,7 +244,6 @@ open class Localization<G, P, A>(
         currentErrors = emptyList()
         for ((index, resourceId) in resourceIds.withIndex()) {
             if (resourceId.type == ResourceType.Required) {
-                val locale = currentLocales.getOrElse(index) { currentLocales.first() }
                 if (index >= currentBundles.size || currentBundles.getOrNull(index)?.hasMessage("") != true) {
                     currentErrors = currentErrors + L10nError.MissingResource(resourceId, currentLocales)
                 }

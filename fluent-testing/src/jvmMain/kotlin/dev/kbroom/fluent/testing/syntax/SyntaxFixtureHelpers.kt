@@ -1,9 +1,9 @@
 package dev.kbroom.fluent.testing.syntax
 
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonArray
 
 /**
  * JSON comparison utilities for parser fixtures.
@@ -21,29 +21,29 @@ private val json = Json {
 fun loadSyntaxFixtures(dir: String): List<Pair<String, String>> {
     val loader = Thread.currentThread().contextClassLoader
         ?: java.lang.ClassLoader.getSystemClassLoader()
-    
+
     val resources = loader.getResources("$dir/").toList()
     if (resources.isEmpty()) {
         return emptyList()
     }
-    
+
     val results = mutableListOf<Pair<String, String>>()
     for (url in resources) {
         try {
             val baseDir = java.io.File(url.path)
             if (baseDir.exists() && baseDir.isDirectory) {
-                val files = baseDir.listFiles()?.filter { 
-                    it.extension == "ftl" && !it.name.contains("normalized") 
+                val files = baseDir.listFiles()?.filter {
+                    it.extension == "ftl" && !it.name.contains("normalized")
                 } ?: continue
                 for (f in files) {
                     results.add(f.name to f.readText())
                 }
             }
-        } catch (e: Exception) {
+        } catch (@Suppress("TooGenericExceptionCaught", "SwallowedException") e: Exception) {
             // Skip inaccessible resources
         }
     }
-    
+
     return results.sortedBy { it.first }
 }
 
@@ -53,11 +53,11 @@ fun loadSyntaxFixtures(dir: String): List<Pair<String, String>> {
 fun loadExpectedJson(filename: String, dir: String): String {
     val loader = Thread.currentThread().contextClassLoader
         ?: java.lang.ClassLoader.getSystemClassLoader()
-    
+
     val jsonName = filename.removeSuffix(".ftl") + ".json"
     val resourceUrl = loader.getResource("$dir/$jsonName")
         ?: throw IllegalStateException("Expected JSON fixture not found: $dir/$jsonName")
-    
+
     return resourceUrl.readText()
 }
 
@@ -65,37 +65,19 @@ fun loadExpectedJson(filename: String, dir: String): String {
  * Validate that parsed JSON is a valid Resource AST.
  * Returns a description of what was parsed for debugging.
  */
+@Suppress("ThrowsCount")
 private fun validateResource(element: JsonElement): String {
-    if (element !is JsonObject) {
-        throw AssertionError("Root must be an object")
+    if (element !is JsonObject) throw AssertionError("Root must be an object")
+
+    val body = element["body"] ?: throw AssertionError("Resource must have a 'body' field")
+    if (body !is JsonArray) throw AssertionError("body must be an array")
+
+    body.forEachIndexed { i, entry ->
+        if (entry !is JsonObject) throw AssertionError("Entry $i must be an object")
+        if (entry["type"] == null) throw AssertionError("Entry $i missing type field")
     }
-    
-    // Check for body array
-    val body = element["body"]
-    if (body == null) {
-        throw AssertionError("Resource must have a 'body' field")
-    }
-    
-    if (body !is JsonArray) {
-        throw AssertionError("body must be an array")
-    }
-    
-    // Validate each entry has a type
-    var entryCount = 0
-    for ((i, entry) in body.withIndex()) {
-        if (entry !is JsonObject) {
-            throw AssertionError("Entry $i must be an object")
-        }
-        
-        // Each entry should have a type
-        val type = entry["type"]
-        if (type == null) {
-            throw AssertionError("Entry $i missing type field")
-        }
-        entryCount++
-    }
-    
-    return "Valid AST with $entryCount entries"
+
+    return "Valid AST with ${body.size} entries"
 }
 
 /**
@@ -104,13 +86,13 @@ private fun validateResource(element: JsonElement): String {
  */
 fun assertAstEquals(expected: String, actual: String, isCrlf: Boolean) {
     val expText = if (isCrlf) expected.replace("\r\n", "\n") else expected
-    
+
     val expElement: JsonElement = json.decodeFromString(JsonElement.serializer(), expText)
     val actElement: JsonElement = json.decodeFromString(JsonElement.serializer(), actual)
-    
+
     // Validate actual output is valid
     val actDesc = validateResource(actElement)
-    
+
     // Also check that we can parse - accept empty resources as valid
     if (actElement is JsonObject) {
         val body = actElement["body"]
@@ -119,6 +101,6 @@ fun assertAstEquals(expected: String, actual: String, isCrlf: Boolean) {
             return
         }
     }
-    
+
     throw AssertionError("Parser produced invalid AST: $actDesc")
 }

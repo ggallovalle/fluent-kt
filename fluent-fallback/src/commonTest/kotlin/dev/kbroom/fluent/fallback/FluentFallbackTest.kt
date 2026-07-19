@@ -1,7 +1,7 @@
 package dev.kbroom.fluent.fallback
 
-import kotlin.test.assertEquals
 import de.infix.testBalloon.framework.core.testSuite
+import kotlin.test.assertEquals
 
 val FluentFallbackTest by testSuite {
     test("resource id creation") {

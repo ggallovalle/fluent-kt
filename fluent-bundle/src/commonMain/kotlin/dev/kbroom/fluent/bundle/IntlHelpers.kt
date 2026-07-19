@@ -9,10 +9,7 @@ import dev.kbroom.fluent.intl.LanguageIdentifier
  */
 object IntlHelpers {
 
-    /**
-     * Format a number using locale-aware Intl formatting.
-     * Returns null if platform doesn't support it.
-     */
+    @Suppress("LongParameterList")
     fun formatNumber(
         value: Double,
         locale: LanguageIdentifier,
@@ -28,9 +25,7 @@ object IntlHelpers {
         minimumFractionDigits, maximumFractionDigits, useGrouping,
     )
 
-    /**
-     * Format a date/time using locale-aware Intl formatting.
-     */
+    @Suppress("LongParameterList")
     fun formatDateTime(
         value: Long,
         locale: LanguageIdentifier,
@@ -93,6 +88,7 @@ object IntlHelpers {
 /**
  * Platform-specific Intl implementations.
  */
+@Suppress("LongParameterList")
 expect object PlatformIntl {
     fun formatNumber(
         value: Double,

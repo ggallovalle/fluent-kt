@@ -1,9 +1,9 @@
 package dev.kbroom.fluent.syntax
 
+import de.infix.testBalloon.framework.core.testSuite
 import dev.kbroom.fluent.syntax.parser.FluentParser
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
-import de.infix.testBalloon.framework.core.testSuite
 
 val FluentSyntaxTest by testSuite {
 
@@ -68,7 +68,7 @@ val FluentSyntaxTest by testSuite {
         assertEquals("String", v?.type)
         assertEquals("desc", v?.description)
     }
-    
+
     test("parse doc comment with variable (dash separator)") {
         val parser = FluentParser()
         val source = $$"""
@@ -84,7 +84,7 @@ val FluentSyntaxTest by testSuite {
         assertEquals("Number", v?.type)
         assertEquals("tab count", v?.description)
     }
-    
+
     test("parse doc comment with curly brace type and default") {
         val parser = FluentParser()
         val source = $$"""
@@ -101,7 +101,7 @@ val FluentSyntaxTest by testSuite {
         assertEquals("Arial", v?.defaultValue)
         assertEquals("font", v?.description)
     }
-    
+
     test("parse doc comment with no type") {
         val parser = FluentParser()
         val source = $$"""
@@ -117,7 +117,7 @@ val FluentSyntaxTest by testSuite {
         assertEquals("", v?.type)
         assertEquals("default value", v?.description)
     }
-    
+
     test("parse doc comment with variable continuation line") {
         val parser = FluentParser()
         val source = $$"""
@@ -132,7 +132,7 @@ val FluentSyntaxTest by testSuite {
         val v = message.docComment?.variables?.get(0)
         assertEquals("first line continuation", v?.description)
     }
-    
+
     test("blank line between comment and message - comment binds anyway") {
         val parser = FluentParser()
         val source = """
@@ -146,7 +146,7 @@ val FluentSyntaxTest by testSuite {
         val message = resource.body[0] as Entry.Message
         assertEquals("Doc", message.docComment?.description)
     }
-    
+
     test("double hash binds as docComment") {
         val parser = FluentParser()
         val source = $$"""
@@ -159,7 +159,7 @@ val FluentSyntaxTest by testSuite {
         val message = resource.body[0] as Entry.Message
         assertEquals(1, message.docComment?.variables?.size)
     }
-    
+
     test("triple hash never binds - standalone") {
         val parser = FluentParser()
         val source = """

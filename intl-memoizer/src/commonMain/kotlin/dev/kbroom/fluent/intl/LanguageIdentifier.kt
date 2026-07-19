@@ -17,6 +17,7 @@ data class LanguageIdentifier(
         /**
          * Parse a BCP 47 language tag into a LanguageIdentifier.
          */
+        @Suppress("UnsafeCallOnNullableType", "UseOrEmpty")
         fun parse(tag: String): LanguageIdentifier {
             val parts = tag.split("-")
             val language = parts.getOrNull(0)?.lowercase() ?: ""

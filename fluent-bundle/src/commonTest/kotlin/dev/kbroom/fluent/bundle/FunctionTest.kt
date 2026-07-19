@@ -1,11 +1,9 @@
 package dev.kbroom.fluent.bundle
 
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
-import dev.kbroom.fluent.intl.LanguageIdentifier
-import dev.kbroom.fluent.bundle.types.FluentValue
-import dev.kbroom.fluent.bundle.types.FluentNumber
 import de.infix.testBalloon.framework.core.testSuite
+import dev.kbroom.fluent.bundle.types.FluentValue
+import dev.kbroom.fluent.intl.LanguageIdentifier
+import kotlin.test.assertTrue
 
 /**
  * Tests for built-in functions: NUMBER, PLURAL, DATETIME

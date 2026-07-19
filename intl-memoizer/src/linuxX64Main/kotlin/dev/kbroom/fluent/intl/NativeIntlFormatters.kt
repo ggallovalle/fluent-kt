@@ -7,24 +7,20 @@ import kotlin.math.round as kround
  * LinuxX64 (Kotlin/Native) implementation of Intl formatters.
  * Uses a fallback approach for basic formatting.
  * For full Intl support, consider using ICU4X or platform-specific bindings.
- */
-
-/**
+ *
  * Format numbers - basic fallback implementation for LinuxX64.
  */
 class LinuxX64NumberFormatter(
     private val locale: LanguageIdentifier,
-    private val options: NumberFormatOptions = NumberFormatOptions()
+    private val options: NumberFormatOptions = NumberFormatOptions(),
 ) : IntlFormatter<Double> {
 
-    override fun format(value: Double): String {
-        return when (options.style) {
-            NumberFormatStyle.Decimal -> formatDecimal(value)
-            NumberFormatStyle.Percent -> formatPercent(value)
-            NumberFormatStyle.Currency -> formatCurrency(value)
-            NumberFormatStyle.Unit -> formatUnit(value)
-            NumberFormatStyle.Compact -> formatCompact(value)
-        }
+    override fun format(value: Double): String = when (options.style) {
+        NumberFormatStyle.Decimal -> formatDecimal(value)
+        NumberFormatStyle.Percent -> formatPercent(value)
+        NumberFormatStyle.Currency -> formatCurrency(value)
+        NumberFormatStyle.Unit -> formatUnit(value)
+        NumberFormatStyle.Compact -> formatCompact(value)
     }
 
     private fun formatDecimal(value: Double): String {
@@ -54,13 +50,11 @@ class LinuxX64NumberFormatter(
         return formatWithDigits(value, 2) + " " + unit
     }
 
-    private fun formatCompact(value: Double): String {
-        return when {
-            value >= 1_000_000_000 -> formatWithDigits(value / 1_000_000_000, 1) + "B"
-            value >= 1_000_000 -> formatWithDigits(value / 1_000_000, 1) + "M"
-            value >= 1_000 -> formatWithDigits(value / 1_000, 1) + "K"
-            else -> value.toString()
-        }
+    private fun formatCompact(value: Double): String = when {
+        value >= 1_000_000_000 -> formatWithDigits(value / 1_000_000_000, 1) + "B"
+        value >= 1_000_000 -> formatWithDigits(value / 1_000_000, 1) + "M"
+        value >= 1_000 -> formatWithDigits(value / 1_000, 1) + "K"
+        else -> value.toString()
     }
 
     private fun formatWithDigits(value: Double, digits: Int): String {
@@ -77,17 +71,15 @@ class LinuxX64NumberFormatter(
         }
     }
 
-    private fun getCurrencySymbol(code: String): String {
-        return when (code) {
-            "USD" -> "$"
-            "EUR" -> "€"
-            "GBP" -> "£"
-            "JPY" -> "¥"
-            "CNY" -> "¥"
-            "RUB" -> "₽"
-            "INR" -> "₹"
-            else -> code
-        }
+    private fun getCurrencySymbol(code: String): String = when (code) {
+        "USD" -> "$"
+        "EUR" -> "€"
+        "GBP" -> "£"
+        "JPY" -> "¥"
+        "CNY" -> "¥"
+        "RUB" -> "₽"
+        "INR" -> "₹"
+        else -> code
     }
 }
 
@@ -96,7 +88,7 @@ class LinuxX64NumberFormatter(
  */
 class LinuxX64DateTimeFormatter(
     private val locale: LanguageIdentifier,
-    private val options: DateTimeFormatOptions = DateTimeFormatOptions()
+    private val options: DateTimeFormatOptions = DateTimeFormatOptions(),
 ) : IntlFormatter<Long> {
 
     override fun format(value: Long): String {
@@ -121,7 +113,7 @@ class LinuxX64DateTimeFormatter(
  */
 class LinuxX64ListFormatter(
     private val locale: LanguageIdentifier,
-    private val options: ListFormatOptions = ListFormatOptions()
+    private val options: ListFormatOptions = ListFormatOptions(),
 ) : IntlFormatter<List<String>> {
 
     override fun format(value: List<String>): String {

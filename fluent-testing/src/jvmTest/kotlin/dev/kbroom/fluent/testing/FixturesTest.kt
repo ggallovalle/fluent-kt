@@ -1,14 +1,14 @@
 package dev.kbroom.fluent.testing
 
+import de.infix.testBalloon.framework.core.testSuite
 import dev.kbroom.fluent.bundle.FluentBundle
 import dev.kbroom.fluent.bundle.FluentResource
+import dev.kbroom.fluent.fallback.ResourceId
 import dev.kbroom.fluent.intl.LanguageIdentifier
 import dev.kbroom.fluent.resmgr.ResourceManager
-import dev.kbroom.fluent.fallback.ResourceId
 import java.io.File
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
-import de.infix.testBalloon.framework.core.testSuite
 
 /**
  * Test that uses real Firefox FTL fixtures.
@@ -46,10 +46,12 @@ val FixturesTest by testSuite {
     }
 
     test("fallback") {
-        val bundle = FluentBundle(listOf(
-            LanguageIdentifier.parse("pl"),
-            LanguageIdentifier.parse("en-US")
-        ))
+        val bundle = FluentBundle(
+            listOf(
+                LanguageIdentifier.parse("pl"),
+                LanguageIdentifier.parse("en-US"),
+            ),
+        )
 
         loadResource("pl/browser/browser")?.let { bundle.addResource(it) }
         loadResource("en-US/browser/browser")?.let { bundle.addResource(it) }
@@ -73,7 +75,7 @@ val FixturesTest by testSuite {
         val rm = ResourceManager(fixturesPath)
         val bundle = rm.getBundle(
             listOf(LanguageIdentifier.parse("en-US")),
-            listOf(ResourceId("browser/browser"))
+            listOf(ResourceId("browser/browser")),
         )
 
         val result = bundle.format("browser-main-window-title", null)

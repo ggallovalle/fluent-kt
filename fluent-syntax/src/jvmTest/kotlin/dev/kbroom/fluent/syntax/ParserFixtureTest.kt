@@ -1,11 +1,12 @@
 package dev.kbroom.fluent.syntax
 
-import dev.kbroom.fluent.testing.syntax.*
+import de.infix.testBalloon.framework.core.testSuite
 import dev.kbroom.fluent.syntax.parser.FluentParser
+import dev.kbroom.fluent.testing.syntax.assertAstEquals
+import dev.kbroom.fluent.testing.syntax.loadExpectedJson
+import dev.kbroom.fluent.testing.syntax.loadSyntaxFixtures
 import kotlinx.serialization.json.Json
 import kotlin.test.assertTrue
-import kotlin.test.assertEquals
-import de.infix.testBalloon.framework.core.testSuite
 
 /**
  * Parser fixture tests - compare parsed AST against reference JSON fixtures.
@@ -34,7 +35,13 @@ val ParserFixtureTest by testSuite {
             }
         }
 
-        val message = if (failures.isEmpty()) "" else "Parser threw on fixtures (${failures.size}):\n${failures.joinToString("\n")}"
+        val message = if (failures.isEmpty()) {
+            ""
+        } else {
+            "Parser threw on fixtures (${failures.size}):\n${failures.joinToString(
+                "\n",
+            )}"
+        }
         assertTrue(failures.isEmpty(), message)
     }
 
@@ -58,7 +65,13 @@ val ParserFixtureTest by testSuite {
             }
         }
 
-        val message = if (failures.isEmpty()) "" else "Parser fixture failures (${failures.size}):\n${failures.joinToString("\n")}"
+        val message = if (failures.isEmpty()) {
+            ""
+        } else {
+            "Parser fixture failures (${failures.size}):\n${failures.joinToString(
+                "\n",
+            )}"
+        }
         assertTrue(failures.isEmpty(), message)
     }
 }

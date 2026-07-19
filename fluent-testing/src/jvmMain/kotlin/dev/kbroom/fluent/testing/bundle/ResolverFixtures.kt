@@ -1,7 +1,5 @@
 package dev.kbroom.fluent.testing.bundle
 
-import com.charleskorn.kaml.Yaml
-import com.charleskorn.kaml.YamlConfiguration
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -9,17 +7,13 @@ import kotlinx.serialization.Serializable
  * Root fixture structure matching fluent-rs YAML format.
  */
 @Serializable
-data class TestFixture(
-    val suites: List<TestSuite>
-)
+data class TestFixture(val suites: List<TestSuite>)
 
 /**
  * Default configuration loaded from defaults.yaml.
  */
 @Serializable
-data class TestDefaults(
-    val bundle: BundleDefaults
-)
+data class TestDefaults(val bundle: BundleDefaults)
 
 @Serializable
 data class BundleDefaults(
@@ -27,7 +21,7 @@ data class BundleDefaults(
     @SerialName("useIsolating")
     val useIsolating: Boolean? = null,
     val transform: String? = null,
-    val functions: List<String>? = null
+    val functions: List<String>? = null,
 )
 
 /**
@@ -40,7 +34,7 @@ data class TestSuite(
     val resources: List<TestResource>? = null,
     val bundles: List<TestBundle>? = null,
     val tests: List<TestCase>? = null,
-    val suites: List<TestSuite>? = null
+    val suites: List<TestSuite>? = null,
 )
 
 /**
@@ -55,18 +49,14 @@ data class TestBundle(
     val transform: String? = null,
     val functions: List<String>? = null,
     val resources: List<String>? = null,
-    val errors: List<TestError>? = null
+    val errors: List<TestError>? = null,
 )
 
 /**
  * A resource (FTL source string).
  */
 @Serializable
-data class TestResource(
-    val source: String,
-    val name: String? = null,
-    val errors: List<TestError>? = null
-)
+data class TestResource(val source: String, val name: String? = null, val errors: List<TestError>? = null)
 
 /**
  * A single test with assertions.
@@ -77,7 +67,7 @@ data class TestCase(
     val skip: Boolean? = null,
     val resources: List<TestResource>? = null,
     val bundles: List<TestBundle>? = null,
-    val asserts: List<TestAssert>
+    val asserts: List<TestAssert>,
 )
 
 /**
@@ -91,7 +81,7 @@ data class TestAssert(
     val bundle: String? = null,
     val missing: Boolean? = null,
     val args: Map<String, String>? = null,
-    val errors: List<TestError>? = null
+    val errors: List<TestError>? = null,
 )
 
 /**
@@ -102,17 +92,19 @@ data class TestAssert(
 sealed class TestArgValue {
     @Serializable
     data class StringValue(val value: String) : TestArgValue()
-    
+
     @Serializable
     data class NumberValue(val value: Double) : TestArgValue()
-    
+
     companion object {
         fun fromString(v: String) = StringValue(v)
         fun fromNumber(v: Double) = NumberValue(v)
-        
+
         fun fromAny(v: Any?): TestArgValue = when (v) {
             is String -> StringValue(v)
+
             is Number -> NumberValue(v.toDouble())
+
             is Map<*, *> -> {
                 // Handle object form {value: "..."} or {numValue: ...}
                 val strVal = v["value"] as? String
@@ -123,6 +115,7 @@ sealed class TestArgValue {
                     else -> StringValue(v.toString())
                 }
             }
+
             else -> StringValue(v?.toString() ?: "")
         }
     }
@@ -135,5 +128,5 @@ sealed class TestArgValue {
 data class TestError(
     @SerialName("type")
     val errorType: String,
-    val desc: String? = null
+    val desc: String? = null,
 )

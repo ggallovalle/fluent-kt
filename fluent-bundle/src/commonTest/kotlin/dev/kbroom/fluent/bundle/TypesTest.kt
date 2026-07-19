@@ -1,15 +1,14 @@
 package dev.kbroom.fluent.bundle
 
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
-import dev.kbroom.fluent.intl.LanguageIdentifier
-import dev.kbroom.fluent.bundle.types.FluentValue
+import de.infix.testBalloon.framework.core.testSuite
 import dev.kbroom.fluent.bundle.types.FluentNumber
+import dev.kbroom.fluent.bundle.types.FluentValue
 import dev.kbroom.fluent.bundle.types.PluralCategory
 import dev.kbroom.fluent.bundle.types.fluentValueOf
 import dev.kbroom.fluent.bundle.types.getPluralCategory
-import de.infix.testBalloon.framework.core.testSuite
+import dev.kbroom.fluent.intl.LanguageIdentifier
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /**
  * Tests for FluentValue types and conversions

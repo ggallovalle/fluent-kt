@@ -9,6 +9,6 @@ actual fun readFileImpl(path: String): String? {
     // For typical use cases, resources are bundled or loaded via different mechanisms
     throw UnsupportedOperationException(
         "File system access is not supported in this configuration. " +
-        "Use platform-specific resource loading mechanisms instead."
+            "Use platform-specific resource loading mechanisms instead.",
     )
 }

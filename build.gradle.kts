@@ -62,18 +62,13 @@ subprojects {
     // Kotlin Multiplatform projects. Expose a `detektAll` task that
     // depends on every `detekt*` task in the project so `./gradlew detektAll`
     // runs the lot.
-    //
-    // We wire the dependencies inside `subprojects { afterEvaluate { ... } }`
-    // (not inside a `gradle.taskGraph.whenReady` callback) so the per-source-
-    // set detekt tasks are part of the task graph at task-graph build time
-    // and `--rerun-tasks` applies to them.
     val detektAll = tasks.register("detektAll") {
         group = "verification"
         description = "Runs all detekt analyses (per source set and with type resolution)"
     }
     afterEvaluate {
         tasks.withType<dev.detekt.gradle.Detekt>().forEach { detektTask ->
-            if (detektTask.name != "detektAll") {
+            if (detektTask.name != detektAll.name) {
                 detektAll.configure { dependsOn(detektTask) }
             }
         }

@@ -1,11 +1,11 @@
 package dev.kbroom.fluent.fallback
 
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
+import de.infix.testBalloon.framework.core.testSuite
 import dev.kbroom.fluent.bundle.FluentBundle
 import dev.kbroom.fluent.bundle.FluentResource
 import dev.kbroom.fluent.intl.LanguageIdentifier
-import de.infix.testBalloon.framework.core.testSuite
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /**
  * Tests for fallback localization behavior

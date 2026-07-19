@@ -3,6 +3,7 @@ package dev.kbroom.fluent.bundle
 /**
  * Errors that can occur in FluentBundle.
  */
+@Suppress("AbstractClassCanBeInterface")
 sealed class FluentError {
     /**
      * Attempted to override an entry.
