@@ -32,10 +32,8 @@ that `FluentBundle` filters out.
   an attribute value is empty, produce Junk or skip the attribute
 - [x] **1.3** Add parser-level validation for empty placeables `{}` — should produce
   a parse error, not an empty Placeable expression
-- [~] **1.4** Verify against upstream fixture `junk.ftl` — partial coverage:
-  malformed placeables (`{1x}`) now produce Junk; full structural match still
-  needs upstream-style `##` group-comment handling when followed by Junk
-  (deferred — the cases that drive the failing resolver fixtures are covered)
+- [x] **1.4** Verify against upstream fixture `junk.ftl` — full structural match
+  against `junk.json` now passes in `StructuralAstEqualsTest`
 - [x] **1.5** Remove `isBrokenMessage` workaround from `FluentBundle.addResource`
   once parser produces Junk entries for these cases
 - [x] **1.6** The 2 remaining resolver fixture failures (`err1`, `err3`) should pass
