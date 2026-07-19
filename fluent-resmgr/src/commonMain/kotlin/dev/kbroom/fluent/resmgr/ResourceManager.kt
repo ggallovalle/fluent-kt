@@ -8,7 +8,7 @@ import dev.kbroom.fluent.intl.LanguageIdentifier
 /**
  * Resource Manager for loading Fluent bundles from files.
  */
-class ResourceManager(private val basePath: String) {
+open class ResourceManager(private val basePath: String) {
 
     fun getBundle(locales: List<LanguageIdentifier>, resourceIds: List<ResourceId>): FluentBundle {
         val bundle = FluentBundle(locales)
