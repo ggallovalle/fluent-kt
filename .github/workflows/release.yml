@@ -38,7 +38,9 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       # Resolve version: tag pushes use the tag's `v`-stripped version;
-      # manual dispatches accept a version override (default = 0.1.0).
+      # manual dispatches accept a version override, defaulting to
+      # 0.1.0-SNAPSHOT (throwaway) so re-runs during pipeline testing
+      # land in the snapshot staging repo, not as a real release.
       - name: Resolve version
         id: version
         run: |
@@ -47,7 +49,7 @@ jobs:
           else
             VERSION="${{ inputs.version }}"
             if [ -z "$VERSION" ]; then
-              VERSION="0.1.0"
+              VERSION="0.1.0-SNAPSHOT"
             fi
           fi
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
