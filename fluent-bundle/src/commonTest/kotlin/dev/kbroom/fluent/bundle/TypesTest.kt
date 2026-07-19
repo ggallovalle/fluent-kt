@@ -6,7 +6,9 @@ import kotlin.test.assertTrue
 import dev.kbroom.fluent.intl.LanguageIdentifier
 import dev.kbroom.fluent.bundle.types.FluentValue
 import dev.kbroom.fluent.bundle.types.FluentNumber
+import dev.kbroom.fluent.bundle.types.PluralCategory
 import dev.kbroom.fluent.bundle.types.fluentValueOf
+import dev.kbroom.fluent.bundle.types.getPluralCategory
 import de.infix.testBalloon.framework.core.testSuite
 
 /**
@@ -75,5 +77,39 @@ val TypesTest by testSuite {
 
         val message = bundle.getMessage("hello")
         assertTrue(message != null)
+    }
+
+    test("plural category: english one/other") {
+        assertEquals(PluralCategory.ONE, getPluralCategory(1.0, "en-US"))
+        assertEquals(PluralCategory.OTHER, getPluralCategory(0.0, "en-US"))
+        assertEquals(PluralCategory.OTHER, getPluralCategory(2.0, "en-US"))
+    }
+
+    test("plural category: slavic one/few/many/other") {
+        assertEquals(PluralCategory.ONE, getPluralCategory(1.0, "ru-RU"))
+        assertEquals(PluralCategory.FEW, getPluralCategory(2.0, "ru-RU"))
+        assertEquals(PluralCategory.MANY, getPluralCategory(5.0, "ru-RU"))
+        // CLDR: 0 is "many" in Russian (mod10==0, mod100 not in 11..14)
+        assertEquals(PluralCategory.MANY, getPluralCategory(0.0, "ru-RU"))
+        assertEquals(PluralCategory.MANY, getPluralCategory(11.0, "ru-RU"))
+        // 21 is "one" in Russian (mod10==1, mod100==21, mod100 != 11)
+        assertEquals(PluralCategory.ONE, getPluralCategory(21.0, "ru-RU"))
+    }
+
+    test("plural category: arabic zero/one/two/few/many/other") {
+        assertEquals(PluralCategory.ZERO, getPluralCategory(0.0, "ar"))
+        assertEquals(PluralCategory.ONE, getPluralCategory(1.0, "ar"))
+        assertEquals(PluralCategory.TWO, getPluralCategory(2.0, "ar"))
+        assertEquals(PluralCategory.FEW, getPluralCategory(3.0, "ar"))
+        assertEquals(PluralCategory.MANY, getPluralCategory(11.0, "ar"))
+        assertEquals(PluralCategory.OTHER, getPluralCategory(100.0, "ar"))
+    }
+
+    test("plural category: unknown locale returns OTHER for all values") {
+        // The default branch returns OTHER regardless of intValue for any
+        // locale that doesn't match en/ru/uk/ar.
+        assertEquals(PluralCategory.OTHER, getPluralCategory(1.0, "xx-YY"))
+        assertEquals(PluralCategory.OTHER, getPluralCategory(0.0, "xx-YY"))
+        assertEquals(PluralCategory.OTHER, getPluralCategory(42.0, "xx-YY"))
     }
 }
