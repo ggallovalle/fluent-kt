@@ -1,7 +1,5 @@
 package dev.kbroom.fluent.bundle
 
-import dev.kbroom.fluent.bundle.resolver.PatternResolver
-import dev.kbroom.fluent.bundle.resolver.Scope
 import dev.kbroom.fluent.bundle.types.FluentNumber
 import dev.kbroom.fluent.bundle.types.FluentValue
 import dev.kbroom.fluent.intl.IntlLangMemoizer
@@ -18,7 +16,7 @@ import dev.kbroom.fluent.syntax.Pattern
  * ## Basic Usage
  * ```kotlin
  * val bundle = FluentBundle(listOf(LanguageIdentifier.parse("en-US")))
- * bundle.addResource(FluentResource.tryNew("hello = Hello, { \$name }!").get())
+ * bundle.addResource(FluentResource.tryNew("hello = Hello, { $name }!").getOrThrow())
  * val output = bundle.format("hello", fluentArgsOf("name" to "World"))
  * // Output: "Hello, World!"
  * ```
@@ -33,7 +31,7 @@ class FluentBundle(val locales: List<LanguageIdentifier>, val useIsolating: Bool
     private var transform: ((String) -> String)? = null
     private var formatter: ((FluentValue, IntlLangMemoizer) -> String?)? = null
     private val memoizer: IntlLangMemoizer = IntlLangMemoizer()
-    private val resolver = PatternResolver()
+    private val resolver = dev.kbroom.fluent.bundle.resolver.PatternResolver()
 
     /**
      * Add a resource to this bundle.
@@ -145,7 +143,7 @@ class FluentBundle(val locales: List<LanguageIdentifier>, val useIsolating: Bool
         args: FluentArgs? = null,
         errors: MutableList<FluentError> = mutableListOf(),
     ): String {
-        val scope = Scope(this, args, errors)
+        val scope = dev.kbroom.fluent.bundle.resolver.Scope(this, args, errors)
         val result = resolver.resolve(pattern, scope)
         return result
     }
@@ -161,7 +159,7 @@ class FluentBundle(val locales: List<LanguageIdentifier>, val useIsolating: Bool
         val message = getMessage(id) ?: return null
         val pattern = message.value() ?: return null
         val errors = mutableListOf<FluentError>()
-        val scope = Scope(this, args, errors)
+        val scope = dev.kbroom.fluent.bundle.resolver.Scope(this, args, errors)
         return resolver.resolve(pattern, scope)
     }
 
@@ -243,16 +241,26 @@ class FluentBundle(val locales: List<LanguageIdentifier>, val useIsolating: Bool
      * Add built-in functions (NUMBER, PLURAL, etc.) to this bundle.
      */
     fun addBuiltins() {
+        addNumberFunction()
+        addPluralFunction()
+        addConcatFunction()
+        addSumFunction()
+        addIdentityFunction()
+    }
+
+    private fun addNumberFunction() {
         val bundleLocales = locales
         val bundleMemoizer = memoizer
-
         addFunction("NUMBER") { args, _ ->
             val rawValue = args.firstOrNull()?.asAny()
             val value = when (rawValue) {
                 is Double -> rawValue
+
                 is Int -> rawValue.toDouble()
+
                 is String -> rawValue.toDoubleOrNull()
                     ?: return@addFunction FluentValue.Error("NUMBER requires a number argument")
+
                 else -> return@addFunction FluentValue.Error("NUMBER requires a number argument")
             }
 
@@ -289,7 +297,11 @@ class FluentBundle(val locales: List<LanguageIdentifier>, val useIsolating: Bool
             )
             if (result != null) FluentValue.Str(result) else FluentValue.Error("NUMBER formatting failed")
         }
+    }
 
+    private fun addPluralFunction() {
+        val bundleLocales = locales
+        val bundleMemoizer = memoizer
         addFunction("PLURAL") { args, _ ->
             val value = args.firstOrNull()?.asAny() as? Double
                 ?: (args.firstOrNull()?.asAny() as? Int)?.toDouble()
@@ -298,19 +310,25 @@ class FluentBundle(val locales: List<LanguageIdentifier>, val useIsolating: Bool
             val category = IntlHelpers.getPluralCategory(value, bundleLocales.first(), bundleMemoizer)
             FluentValue.Str(category)
         }
+    }
 
+    private fun addConcatFunction() {
         addFunction("CONCAT") { args, _ ->
             val result = args.joinToString("") { it.asString() }
             FluentValue.Str(result)
         }
+    }
 
+    private fun addSumFunction() {
         addFunction("SUM") { args, _ ->
             val sum = args.mapNotNull {
                 (it.asAny() as? Double) ?: ((it.asAny() as? Int)?.toDouble())
             }.sum()
             FluentValue.Number(FluentNumber(sum))
         }
+    }
 
+    private fun addIdentityFunction() {
         addFunction("IDENTITY") { args, _ ->
             args.firstOrNull() ?: FluentValue.None
         }
