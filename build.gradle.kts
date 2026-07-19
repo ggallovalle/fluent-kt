@@ -8,6 +8,45 @@ plugins {
     id("dev.detekt") version "2.0.0-alpha.5" apply false
 }
 
+// Apply the vanniktech publish plugin to every publishing module
+// (excludes :fluent-testing, which is internal test infrastructure).
+// The plugin's base extension is configured with shared POM metadata
+// pulled from gradle.properties.
+subprojects {
+    if (project.path != ":fluent-testing") {
+        apply(plugin = "com.vanniktech.maven.publish")
+        extensions.configure(com.vanniktech.maven.publish.MavenPublishBaseExtension::class.java) {
+            publishToMavenCentral()
+            signAllPublications()
+            pom {
+                name.set(project.findProperty("POM_NAME") as String? ?: "fluent-kt")
+                description.set(project.findProperty("POM_DESCRIPTION") as String? ?: "")
+                inceptionYear.set(project.findProperty("POM_INCEPTION_YEAR") as String? ?: "2026")
+                url.set(project.findProperty("POM_URL") as String? ?: "")
+                licenses {
+                    license {
+                        name.set(project.findProperty("POM_LICENSE_NAME") as String? ?: "MIT")
+                        url.set(project.findProperty("POM_LICENSE_URL") as String? ?: "")
+                        distribution.set(project.findProperty("POM_LICENSE_DISTRIBUTION") as String? ?: "")
+                    }
+                }
+                developers {
+                    developer {
+                        id.set(project.findProperty("POM_DEVELOPER_ID") as String? ?: "")
+                        name.set(project.findProperty("POM_DEVELOPER_NAME") as String? ?: "")
+                        url.set(project.findProperty("POM_DEVELOPER_URL") as String? ?: "")
+                    }
+                }
+                scm {
+                    url.set(project.findProperty("POM_SCM_URL") as String? ?: "")
+                    connection.set(project.findProperty("POM_SCM_CONNECTION") as String? ?: "")
+                    developerConnection.set(project.findProperty("POM_SCM_DEV_CONNECTION") as String? ?: "")
+                }
+            }
+        }
+    }
+}
+
 tasks.register("clean", Delete::class) {
     delete(rootProject.layout.buildDirectory)
 }
