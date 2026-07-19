@@ -3,6 +3,8 @@ package dev.kbroom.fluent.bundle.resolver
 import dev.kbroom.fluent.bundle.FluentArgs
 import dev.kbroom.fluent.bundle.FluentBundle
 import dev.kbroom.fluent.bundle.FluentError
+import dev.kbroom.fluent.bundle.FluentMessage
+import dev.kbroom.fluent.bundle.FluentTerm
 import dev.kbroom.fluent.bundle.types.FluentNumber
 import dev.kbroom.fluent.bundle.types.FluentValue
 import dev.kbroom.fluent.syntax.CallArguments
@@ -93,10 +95,16 @@ class Scope(
  *
  * This is the main workhorse of the Fluent runtime.
  *
+ * The class has 22 functions because each public resolution entry point
+ * (resolve / resolveExpression / resolveExpressionAsString /
+ * resolveInlineExpression) is paired with the per-shape helpers
+ * (appendPlaceable, resolveMessageReference, resolveTermReference, ...)
+ * that detekt's complexity rules demand.
+ *
  * @see Scope for the resolution context
  */
+@Suppress("TooManyFunctions")
 class PatternResolver {
-
     fun resolve(pattern: Pattern, scope: Scope, applyTransform: Boolean = true): String {
         val sb = StringBuilder()
         val useIsolating = scope.bundle.useIsolating
@@ -215,48 +223,51 @@ class PatternResolver {
             scope.untrackPlaceable(id)
             return FluentValue.Str("{$id}")
         }
-
-        val message = scope.bundle.getMessage(id) ?: run {
-            val refId = if (attribute != null) "$id.$attribute" else id
-            scope.errors.add(
-                FluentError.ResolverError(
-                    ResolverError.Reference(ReferenceKind.MESSAGE, refId),
-                ),
-            )
-            scope.untrackPlaceable(id)
-            return FluentValue.Str("{$refId}")
+        val message = scope.bundle.getMessage(id)
+        val result: FluentValue = when {
+            message == null -> reportMissingMessage(id, attribute, scope)
+            attribute != null -> resolveMessageAttribute(id, message, attribute, scope)
+            else -> resolveMessageBody(id, message, scope)
         }
+        scope.untrackPlaceable(id)
+        return result
+    }
 
-        if (attribute != null) {
-            val attrValue = message.getAttributeValue(attribute)
-            if (attrValue != null) {
-                scope.untrackPlaceable(id)
-                return FluentValue.Pattern(attrValue)
-            } else {
-                scope.errors.add(
-                    FluentError.ResolverError(
-                        ResolverError.Reference(ReferenceKind.MESSAGE, "$id.$attribute"),
-                    ),
-                )
-                scope.untrackPlaceable(id)
-                return FluentValue.Str("{$id.$attribute}")
-            }
-        }
+    private fun reportMissingMessage(id: String, attribute: String?, scope: Scope): FluentValue {
+        val refId = if (attribute != null) "$id.$attribute" else id
+        scope.errors.add(
+            FluentError.ResolverError(
+                ResolverError.Reference(ReferenceKind.MESSAGE, refId),
+            ),
+        )
+        return FluentValue.Str("{$refId}")
+    }
+
+    private fun resolveMessageAttribute(
+        id: String,
+        message: FluentMessage,
+        attribute: String,
+        scope: Scope,
+    ): FluentValue {
+        val attrValue = message.getAttributeValue(attribute)
+        if (attrValue != null) return FluentValue.Pattern(attrValue)
+        scope.errors.add(
+            FluentError.ResolverError(
+                ResolverError.Reference(ReferenceKind.MESSAGE, "$id.$attribute"),
+            ),
+        )
+        return FluentValue.Str("{$id.$attribute}")
+    }
+
+    private fun resolveMessageBody(id: String, message: FluentMessage, scope: Scope): FluentValue {
         val value = message.value()
         val hasContent = value != null && value.elements.isNotEmpty()
-
-        if (hasContent) {
-            val result = resolve(value, scope, applyTransform = false)
-            scope.untrackPlaceable(id)
-            return FluentValue.Str(result)
-        }
-
+        if (hasContent) return FluentValue.Str(resolve(value, scope, applyTransform = false))
         scope.errors.add(
             FluentError.ResolverError(
                 ResolverError.Reference(ReferenceKind.MESSAGE, id),
             ),
         )
-        scope.untrackPlaceable(id)
         return FluentValue.Str("{$id}")
     }
 
@@ -267,89 +278,75 @@ class PatternResolver {
         scope: Scope,
     ): FluentValue {
         val trackId = "-$id"
-        if (!scope.trackPlaceable(trackId)) {
+        if (!scope.trackPlaceable(id)) {
             return FluentValue.Str("{-$id}")
         }
         val term = scope.bundle.getTerm(id)
-        if (term != null) {
-            val attrValue = if (attribute != null) {
-                term.getAttributeValue(attribute)
-            } else {
-                null
-            }
-            if (attribute != null && attrValue == null) {
-                return FluentValue.Str("{-$id.$attribute}")
-            }
-            if (attribute != null && attrValue != null) {
-                val resolveScope = if (arguments != null &&
-                    (arguments.positional.isNotEmpty() || arguments.named.isNotEmpty())
-                ) {
-                    val termArgs = FluentArgs()
-                    for (named in arguments.named) {
-                        val argValue = resolveInlineExpression(named.value, scope)
-                        termArgs.set(named.name.name, argValue)
-                    }
-                    Scope(scope.bundle, termArgs, scope.errors)
-                } else {
-                    val emptyArgs = FluentArgs()
-                    Scope(scope.bundle, emptyArgs, scope.errors)
-                }
-                scope.untrackPlaceable(trackId)
-                val resolvedAttr = resolve(attrValue, resolveScope)
-                return FluentValue.Str(resolvedAttr)
-            }
-
-            val termPattern = term.value()
-            val hasPlaceables = termPattern.elements.any { it is PatternElement.Placeable }
-            val hasExplicitArgs = arguments != null &&
-                (arguments.positional.isNotEmpty() || arguments.named.isNotEmpty())
-
-            val resolveScope: Scope = when {
-                hasExplicitArgs && arguments != null -> {
-                    val termArgs = FluentArgs()
-                    for (named in arguments.named) {
-                        val argValue = resolveInlineExpression(named.value, scope)
-                        termArgs.set(named.name.name, argValue)
-                    }
-                    Scope(scope.bundle, termArgs, scope.errors)
-                }
-
-                scope.args != null -> {
-                    val emptyArgs = FluentArgs()
-                    Scope(scope.bundle, emptyArgs, scope.errors)
-                }
-
-                else -> scope
-            }
-
-            scope.untrackPlaceable(trackId)
-            return FluentValue.Str(resolve(term.value(), resolveScope))
+        val result: FluentValue = if (term != null) {
+            resolveTermHit(id, attribute, arguments, term, scope)
+        } else {
+            resolveTermAsMessage(id, attribute, scope)
         }
-
-        val result = resolveMessageReference(id, attribute, scope)
-
         scope.untrackPlaceable(trackId)
+        return result
+    }
+
+    private fun resolveTermHit(
+        id: String,
+        attribute: String?,
+        arguments: CallArguments?,
+        term: FluentTerm,
+        scope: Scope,
+    ): FluentValue {
+        if (attribute == null) return resolveTermBody(term, arguments, scope)
+        val attrValue = term.getAttributeValue(attribute) ?: return FluentValue.Str("{-$id.$attribute}")
+        return FluentValue.Str(resolve(attrValue, scopeForTerm(arguments, scope)))
+    }
+
+    private fun resolveTermBody(term: FluentTerm, arguments: CallArguments?, scope: Scope): FluentValue {
+        val hasExplicitArgs = arguments != null &&
+            (arguments.positional.isNotEmpty() || arguments.named.isNotEmpty())
+        val resolveScope: Scope = when {
+            hasExplicitArgs -> scopeForTerm(arguments, scope)
+            scope.args != null -> Scope(scope.bundle, FluentArgs(), scope.errors)
+            else -> scope
+        }
+        return FluentValue.Str(resolve(term.value(), resolveScope))
+    }
+
+    private fun scopeForTerm(arguments: CallArguments?, scope: Scope): Scope {
+        if (arguments == null || (arguments.positional.isEmpty() && arguments.named.isEmpty())) {
+            return Scope(scope.bundle, FluentArgs(), scope.errors)
+        }
+        val termArgs = FluentArgs()
+        for (named in arguments.named) {
+            termArgs.set(named.name.name, resolveInlineExpression(named.value, scope))
+        }
+        return Scope(scope.bundle, termArgs, scope.errors)
+    }
+
+    private fun resolveTermAsMessage(id: String, attribute: String?, scope: Scope): FluentValue {
+        val result = resolveMessageReference(id, attribute, scope)
         return when (result) {
-            is FluentValue.None -> {
-                scope.errors.add(
-                    FluentError.ResolverError(
-                        ResolverError.Reference(ReferenceKind.TERM, id),
-                    ),
-                )
-                FluentValue.Str("{-$id}")
-            }
-
-            is FluentValue.Str -> {
-                if (result.value.startsWith("{") && result.value.endsWith("}")) {
-                    FluentValue.Str("{-$id}")
-                } else {
-                    result
-                }
-            }
-
+            is FluentValue.None -> reportTermFallback(id, scope)
+            is FluentValue.Str -> preserveOrSubstitute(result, id)
             else -> result
         }
     }
+
+    private fun reportTermFallback(id: String, scope: Scope): FluentValue {
+        scope.errors.add(
+            FluentError.ResolverError(ResolverError.Reference(ReferenceKind.TERM, id)),
+        )
+        return FluentValue.Str("{-$id}")
+    }
+
+    private fun preserveOrSubstitute(result: FluentValue.Str, id: String): FluentValue =
+        if (result.value.startsWith("{") && result.value.endsWith("}")) {
+            FluentValue.Str("{-$id}")
+        } else {
+            result
+        }
 
     private fun resolveVariable(id: String, scope: Scope): FluentValue {
         val value = scope.args?.get(id)
