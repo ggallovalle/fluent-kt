@@ -100,41 +100,39 @@ class PatternResolver {
     fun resolve(pattern: Pattern, scope: Scope, applyTransform: Boolean = true): String {
         val sb = StringBuilder()
         val useIsolating = scope.bundle.useIsolating
-        val len = pattern.elements.size
         val transform = if (applyTransform) scope.bundle.getTransform() else null
         for (element in pattern.elements) {
             when (element) {
-                is PatternElement.TextElement -> {
-                    val text = element.value
-                    sb.append(transform?.invoke(text) ?: text)
-                }
-
-                is PatternElement.Placeable -> {
-                    val needsIsolation = useIsolating && len > 1 && !isMessageOrTermOrString(element.expression)
-                    if (needsIsolation) {
-                        sb.append('\u2068')
-                    }
-                    val value = resolveExpression(element.expression, scope)
-                    val resolved = when (value) {
-                        is FluentValue.Pattern -> resolve(value.pattern, scope, applyTransform)
-
-                        is FluentValue.None -> {
-                            when (val expr = element.expression) {
-                                is Expression.Inline -> formatInlineReference(expr.expression)
-                                is Expression.Select -> resolveSelect(expr.selector, expr.variants, scope)
-                            }
-                        }
-
-                        else -> value.asString()
-                    }
-                    sb.append(resolved)
-                    if (needsIsolation) {
-                        sb.append('\u2069')
-                    }
-                }
+                is PatternElement.TextElement -> sb.append(transform?.invoke(element.value) ?: element.value)
+                is PatternElement.Placeable -> appendPlaceable(sb, element, useIsolating, pattern.elements.size, scope)
             }
         }
         return sb.toString()
+    }
+
+    private fun appendPlaceable(
+        sb: StringBuilder,
+        element: PatternElement.Placeable,
+        useIsolating: Boolean,
+        totalElements: Int,
+        scope: Scope,
+    ) {
+        val needsIsolation = useIsolating && totalElements > 1 && !isMessageOrTermOrString(element.expression)
+        if (needsIsolation) sb.append('\u2068')
+        val value = resolveExpression(element.expression, scope)
+        sb.append(renderPlaceableValue(value, element.expression, scope))
+        if (needsIsolation) sb.append('\u2069')
+    }
+
+    private fun renderPlaceableValue(value: FluentValue, expression: Expression, scope: Scope): String = when (value) {
+        is FluentValue.Pattern -> resolve(value.pattern, scope, applyTransform = true)
+
+        is FluentValue.None -> when (expression) {
+            is Expression.Inline -> formatInlineReference(expression.expression)
+            is Expression.Select -> resolveSelect(expression.selector, expression.variants, scope).asString()
+        }
+
+        else -> value.asString()
     }
 
     private fun isMessageOrTermOrString(expression: Expression): Boolean = when (expression) {
