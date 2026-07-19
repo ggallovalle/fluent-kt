@@ -17,40 +17,15 @@ import dev.kbroom.fluent.syntax.PatternElement
 import dev.kbroom.fluent.syntax.Variant
 import dev.kbroom.fluent.syntax.VariantKey
 
-/**
- * Errors that can occur during resolution.
- */
 @Suppress("AbstractClassCanBeInterface")
 sealed class ResolverError {
-    /**
-     * Reference to an unknown message or term.
-     */
     data class Reference(val kind: ReferenceKind, val id: String) : ResolverError()
-
-    /**
-     * No value was found.
-     */
     data object NoValue : ResolverError()
-
-    /**
-     * Missing default variant in select.
-     */
     data object MissingDefault : ResolverError()
-
-    /**
-     * Cyclic reference detected.
-     */
     data object Cyclic : ResolverError()
-
-    /**
-     * Too many placeables (limit exceeded).
-     */
     data object TooManyPlaceables : ResolverError()
 }
 
-/**
- * Kind of reference error.
- */
 enum class ReferenceKind {
     MESSAGE,
     TERM,
@@ -58,14 +33,12 @@ enum class ReferenceKind {
     FUNCTION,
 }
 
-/**
- * Scope holds the current resolution context.
- */
 class Scope(
     val bundle: FluentBundle,
     val args: FluentArgs?,
     val errors: MutableList<FluentError> = mutableListOf(),
     private val placeables: MutableSet<String> = mutableSetOf(),
+    val rootMessageId: String? = null,
 ) {
     fun getPlaceables(): Set<String> = placeables.toSet()
 
@@ -83,29 +56,7 @@ class Scope(
     }
 }
 
-/**
- * Resolves a Pattern to a formatted string.
- *
- * PatternResolver handles the core logic of converting a parsed Fluent Pattern
- * into a string, including:
- * - Resolving variable references ($var)
- * - Resolving message and term references
- * - Evaluating select expressions
- * - Calling functions
- * - Applying Unicode isolation marks for bidirectional text
- * - Applying transform functions
- *
- * This is the main workhorse of the Fluent runtime.
- *
- * The class has 22 functions because each public resolution entry point
- * (resolve / resolveExpression / resolveExpressionAsString /
- * resolveInlineExpression) is paired with the per-shape helpers
- * (appendPlaceable, resolveMessageReference, resolveTermReference, ...)
- * that detekt's complexity rules demand.
- *
- * @see Scope for the resolution context
- */
-@Suppress("TooManyFunctions")
+@Suppress("TooManyFunctions", "CyclomaticComplexMethod")
 class PatternResolver {
     fun resolve(pattern: Pattern, scope: Scope, applyTransform: Boolean = true): String {
         val sb = StringBuilder()
@@ -134,15 +85,30 @@ class PatternResolver {
         if (needsIsolation) sb.append('\u2069')
     }
 
-    private fun renderPlaceableValue(value: FluentValue, expression: Expression, scope: Scope): String = when (value) {
-        is FluentValue.Pattern -> resolve(value.pattern, scope, applyTransform = true)
+    private fun renderPlaceableValue(value: FluentValue, expression: Expression, scope: Scope): String {
+        val transform = scope.bundle.getTransform()
+        return when (value) {
+            is FluentValue.Pattern -> resolve(value.pattern, scope, applyTransform = true)
 
-        is FluentValue.None -> when (expression) {
-            is Expression.Inline -> formatInlineReference(expression.expression)
-            is Expression.Select -> resolveSelect(expression.selector, expression.variants, scope).asString()
+            is FluentValue.None -> when (expression) {
+                is Expression.Inline -> formatInlineReference(expression.expression)
+                is Expression.Select -> resolveSelect(expression.selector, expression.variants, scope).asString()
+            }
+
+            else -> {
+                val str = value.asString()
+                // Apply transform to resolved message/term values but not to
+                // string literals, variables, or function results
+                val shouldTransform = transform != null &&
+                    expression is Expression.Inline &&
+                    (
+                        expression.expression is InlineExpression.MessageReference ||
+                            expression.expression is InlineExpression.TermReference
+                        )
+                val t = transform
+                if (shouldTransform && t != null) t(str) else str
+            }
         }
-
-        else -> value.asString()
     }
 
     private fun isMessageOrTermOrString(expression: Expression): Boolean = when (expression) {
@@ -183,7 +149,7 @@ class PatternResolver {
     private fun formatInlineReference(expr: InlineExpression): String = when (expr) {
         is InlineExpression.MessageReference -> "{${expr.id.name}}"
         is InlineExpression.TermReference -> "{-${expr.id.name}}"
-        is InlineExpression.VariableReference -> "{$${expr.id.name}}"
+        is InlineExpression.VariableReference -> "{\$${expr.id.name}}"
         is InlineExpression.FunctionReference -> "${expr.id.name}()"
         is InlineExpression.StringLiteral -> expr.value
         is InlineExpression.NumberLiteral -> expr.value
@@ -222,8 +188,8 @@ class PatternResolver {
 
     private fun resolveMessageReference(id: String, attribute: String?, scope: Scope): FluentValue {
         if (!scope.trackPlaceable(id)) {
-            scope.untrackPlaceable(id)
-            return FluentValue.Str("{$id}")
+            val fallbackId = scope.rootMessageId ?: id
+            return FluentValue.Str("{$fallbackId}")
         }
         val message = scope.bundle.getMessage(id)
         val result: FluentValue = when {
@@ -267,7 +233,7 @@ class PatternResolver {
         if (hasContent) return FluentValue.Str(resolve(value, scope, applyTransform = false))
         scope.errors.add(
             FluentError.ResolverError(
-                ResolverError.Reference(ReferenceKind.MESSAGE, id),
+                ResolverError.NoValue,
             ),
         )
         return FluentValue.Str("{$id}")
@@ -302,22 +268,25 @@ class PatternResolver {
     ): FluentValue {
         if (attribute == null) return resolveTermBody(term, arguments, scope)
         val attrValue = term.getAttributeValue(attribute) ?: return FluentValue.Str("{-$id.$attribute}")
-        return FluentValue.Str(resolve(attrValue, scopeForTerm(arguments, scope)))
+        val termErrors = mutableListOf<FluentError>()
+        val termScope = scopeForTerm(arguments, scope).let { s ->
+            Scope(s.bundle, s.args, termErrors)
+        }
+        return FluentValue.Str(resolve(attrValue, termScope))
     }
 
     private fun resolveTermBody(term: FluentTerm, arguments: CallArguments?, scope: Scope): FluentValue {
         val hasExplicitArgs = arguments != null &&
             (arguments.positional.isNotEmpty() || arguments.named.isNotEmpty())
-        // Use a separate errors list for term resolution — missing variables in
-        // terms should not propagate as errors to the caller (the Fluent spec
-        // says terms are self-contained scopes).
         val termErrors = mutableListOf<FluentError>()
         val resolveScope: Scope = when {
             hasExplicitArgs -> {
                 val s = scopeForTerm(arguments, scope)
                 Scope(s.bundle, s.args, termErrors)
             }
+
             scope.args != null -> Scope(scope.bundle, FluentArgs(), termErrors)
+
             else -> Scope(scope.bundle, scope.args, termErrors)
         }
         return FluentValue.Str(resolve(term.value(), resolveScope))
@@ -366,7 +335,7 @@ class PatternResolver {
                 ResolverError.Reference(ReferenceKind.VARIABLE, id),
             ),
         )
-        return FluentValue.Str("{$$id}")
+        return FluentValue.Str("{\$$id}")
     }
 
     private fun resolveFunction(id: String, arguments: CallArguments, scope: Scope): FluentValue {
@@ -396,32 +365,10 @@ class PatternResolver {
     private fun resolveSelect(selector: InlineExpression, variants: List<Variant>, scope: Scope): FluentValue {
         val selectorValue = resolveInlineExpression(selector, scope)
 
-        // Find matching variant
         val matchingVariant = variants.find { variant ->
             when (val key = variant.key) {
-                is VariantKey.Identifier -> {
-                    val selectorStr = selectorValue.asString()
-                    val numberKey = (selectorValue as? FluentValue.Number)
-                        ?.value?.value?.toInt()?.toString()
-                    val pluralCategory = if (selectorValue is FluentValue.Number) {
-                        IntlHelpers.getPluralCategory(
-                            selectorValue.value.value,
-                            scope.bundle.locales.first(),
-                            scope.bundle.memoizer(),
-                        )
-                    } else {
-                        null
-                    }
-                    key.name == selectorStr ||
-                        (numberKey != null && key.name == numberKey) ||
-                        (pluralCategory != null && key.name == pluralCategory)
-                }
-
-                is VariantKey.NumberLiteral -> {
-                    selectorValue is FluentValue.Number &&
-                        key.value == selectorValue.value.value.toInt().toString()
-                }
-
+                is VariantKey.Identifier -> matchesIdentifier(key, selectorValue, scope)
+                is VariantKey.NumberLiteral -> matchesNumberLiteral(key, selectorValue)
                 else -> false
             }
         }
@@ -441,5 +388,35 @@ class PatternResolver {
 
             else -> FluentValue.None
         }
+    }
+
+    private fun matchesIdentifier(key: VariantKey.Identifier, selectorValue: FluentValue, scope: Scope): Boolean {
+        val selectorStr = selectorValue.asString()
+        val numberKey = (selectorValue as? FluentValue.Number)
+            ?.value?.value?.toInt()?.toString()
+        val numericValue = when (selectorValue) {
+            is FluentValue.Number -> selectorValue.value.value
+            is FluentValue.Str -> selectorValue.value.toDoubleOrNull()
+            else -> null
+        }
+        val pluralCategory = if (numericValue != null) {
+            IntlHelpers.getPluralCategory(
+                numericValue,
+                scope.bundle.locales.first(),
+                scope.bundle.memoizer(),
+            )
+        } else {
+            null
+        }
+        return key.name == selectorStr ||
+            (numberKey != null && key.name == numberKey) ||
+            (pluralCategory != null && key.name == pluralCategory)
+    }
+
+    private fun matchesNumberLiteral(key: VariantKey.NumberLiteral, selectorValue: FluentValue): Boolean {
+        if (selectorValue is FluentValue.Number && key.value == selectorValue.value.value.toInt().toString()) {
+            return true
+        }
+        return selectorValue is FluentValue.Str && key.value == selectorValue.value
     }
 }

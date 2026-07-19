@@ -48,6 +48,8 @@ class FluentBundle(val locales: List<LanguageIdentifier>, val useIsolating: Bool
         for (entry in resource.body) {
             when (entry) {
                 is Entry.Message -> {
+                    // Skip broken messages: no useful value and no useful attributes
+                    if (isBrokenMessage(entry)) continue
                     val existing = entries[entry.id.name]
                     if (existing != null) {
                         errors.add(FluentError.Overriding(EntryKind.MESSAGE, entry.id.name))
@@ -83,8 +85,14 @@ class FluentBundle(val locales: List<LanguageIdentifier>, val useIsolating: Bool
     fun addResourceOverriding(resource: FluentResource): Result<Unit> {
         for (entry in resource.body) {
             when (entry) {
-                is Entry.Message -> entries[entry.id.name] = entry
+                is Entry.Message -> {
+                    // Skip broken messages: no useful value and no useful attributes
+                    if (isBrokenMessage(entry)) continue
+                    entries[entry.id.name] = entry
+                }
+
                 is Entry.Term -> entries[entry.id.name] = entry
+
                 else -> { /* Comments are ignored */ }
             }
         }
@@ -142,8 +150,9 @@ class FluentBundle(val locales: List<LanguageIdentifier>, val useIsolating: Bool
         pattern: Pattern,
         args: FluentArgs? = null,
         errors: MutableList<FluentError> = mutableListOf(),
+        rootMessageId: String? = null,
     ): String {
-        val scope = dev.kbroom.fluent.bundle.resolver.Scope(this, args, errors)
+        val scope = dev.kbroom.fluent.bundle.resolver.Scope(this, args, errors, rootMessageId = rootMessageId)
         val result = resolver.resolve(pattern, scope)
         return result
     }
@@ -159,7 +168,7 @@ class FluentBundle(val locales: List<LanguageIdentifier>, val useIsolating: Bool
         val message = getMessage(id) ?: return null
         val pattern = message.value() ?: return null
         val errors = mutableListOf<FluentError>()
-        val scope = dev.kbroom.fluent.bundle.resolver.Scope(this, args, errors)
+        val scope = dev.kbroom.fluent.bundle.resolver.Scope(this, args, errors, rootMessageId = id)
         return resolver.resolve(pattern, scope)
     }
 
@@ -338,4 +347,19 @@ class FluentBundle(val locales: List<LanguageIdentifier>, val useIsolating: Bool
      * Get the memoizer for caching formatted values.
      */
     fun memoizer(): IntlLangMemoizer = memoizer
+
+    @Suppress("ReturnCount")
+    private fun isBrokenMessage(entry: Entry.Message): Boolean {
+        val value = entry.value
+        val elements = value?.elements
+        val hasUsefulValue = value != null && elements != null && elements.isNotEmpty()
+        val hasAttributes = entry.attributes.isNotEmpty()
+        // No useful value and no attributes at all
+        if (!hasUsefulValue && !hasAttributes) return true
+        // No useful value but has attributes — check if ALL attribute values are empty
+        if (!hasUsefulValue && hasAttributes) {
+            return entry.attributes.all { attr -> attr.value.elements.isEmpty() }
+        }
+        return false
+    }
 }

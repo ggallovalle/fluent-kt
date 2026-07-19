@@ -127,7 +127,7 @@ private fun runAssert(
     } else {
         val pattern = message?.value()
         if (pattern != null) {
-            bundle.formatPattern(pattern, args, errors)
+            bundle.formatPattern(pattern, args, errors, rootMessageId = assert.id)
         } else {
             null
         }
@@ -141,8 +141,8 @@ private fun runAssert(
             )
         }
     } else if (assert.missing == true) {
-        if (actual != null) {
-            failures.add("$casePath assert[$index] id=${assert.id}: expected missing got <$actual>")
+        if (message != null) {
+            failures.add("$casePath assert[$index] id=${assert.id}: expected missing but found")
         }
     }
 
@@ -262,7 +262,7 @@ class TestScope(private val levels: List<ScopeLevel> = emptyList()) {
         transformName ?: return
         bundle.setTransform { text ->
             when (transformName) {
-                "example" -> text.uppercase()
+                "example" -> text.replace("a", "A")
                 else -> text
             }
         }
