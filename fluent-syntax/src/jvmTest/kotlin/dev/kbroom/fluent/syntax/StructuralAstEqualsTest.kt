@@ -108,6 +108,24 @@ val StructuralAstEqualsTest by testSuite {
         assertStructurallyEqual(expected, actual)
     }
 
+    test("junk.ftl has no Message entries for the broken err01-err04 cases") {
+        // Upstream fluent-rs produces Entry.Junk for declarations whose
+        // value is malformed (e.g. `{1x}` whose expression swallowed the
+        // closing brace). Verify we do the same for the cases that drive
+        // the `hasMessage/returns false for broken messages` resolver
+        // fixture: err01 must NOT appear as a Message in the AST.
+        val parser = FluentParser()
+        val source = "err01 = {1x}\nerr02 = {2x}\n"
+        val ast = parser.parse(source)
+        val msgIds = ast.body.filterIsInstance<Entry.Message>().map { it.id.name }
+        assertTrue(
+            "err01" !in msgIds && "err02" !in msgIds,
+            "expected no Message entries for err01/err02, got $msgIds",
+        )
+        val junks = ast.body.filterIsInstance<Entry.Junk>()
+        assertTrue(junks.isNotEmpty(), "expected at least one Junk entry, got ${ast.body}")
+    }
+
     // Smoke test: every fixture in fixtures/ parses without throwing and
     // produces a structurally-valid Resource (a JsonObject with a body field).
     test("every fixture parses into a structurally valid Resource") {

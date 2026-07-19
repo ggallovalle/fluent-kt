@@ -64,10 +64,18 @@ class FluentParser {
     private var source = ""
     private val errors = mutableListOf<ParserError>()
 
+    /**
+     * Set when a malformed placeable (e.g. `{1x}`) is encountered — its
+     * expression parse consumed characters that should have remained inside
+     * the placeable. The enclosing message becomes a Junk entry.
+     */
+    private var hasInvalidPlaceable = false
+
     fun parse(source: String): Resource {
         this.source = source
         this.pos = 0
         this.errors.clear()
+        this.hasInvalidPlaceable = false
 
         val body = mutableListOf<Entry>()
         var bufferedComment: Entry? = null
@@ -329,6 +337,7 @@ class FluentParser {
         }
         pos++ // skip =
 
+        hasInvalidPlaceable = false
         val value = parseMessageValue()
         val attributes = parseMessageAttributes()
         val comment = parseInlineComment()
@@ -419,12 +428,17 @@ class FluentParser {
     }
 
     /**
-     * A message is "broken" if it has no usable value and every attribute
-     * (when any are present) also has an empty value. Broken messages become
-     * Junk entries upstream — they cannot be formatted usefully and they
-     * should not pollute the message catalog.
+     * A message is "broken" if any of:
+     *  - it has no usable value and every attribute (when any are present)
+     *    also has an empty value, or
+     *  - it contained a malformed placeable (e.g. `{1x}` whose expression
+     *    swallowed the closing `}`).
+     *
+     * Broken messages become Junk entries upstream — they cannot be
+     * formatted usefully and they should not pollute the message catalog.
      */
     private fun isMessageBroken(value: Pattern?, attributes: List<Attribute>): Boolean {
+        if (hasInvalidPlaceable) return true
         val valueIsEmpty = value == null || value.elements.isEmpty()
         if (!valueIsEmpty) return false
         if (attributes.isEmpty()) return true
@@ -560,10 +574,25 @@ class FluentParser {
                         pos++ // skip }
                         continue
                     }
+                    val placeholderStart = pos
                     val expr = parseExpression()
                     skipWhitespace()
                     if (peek() == '}') {
                         pos++ // skip }
+                    } else if (placeholderStart != pos) {
+                        // The expression consumed characters but we never
+                        // landed on the matching `}` — this is a malformed
+                        // placeable (e.g. `{1x}`). Mark the enclosing
+                        // message as broken so parseMessage turns it into
+                        // Junk.
+                        hasInvalidPlaceable = true
+                        errors.add(
+                            ParserError.Error(
+                                ErrorKind.UnbalancedClosingBrace,
+                                "Missing closing brace in placeable",
+                                Span(placeholderStart - 1, pos, source),
+                            ),
+                        )
                     }
                     elements.add(PatternElement.Placeable(expr))
                     atStartOfContent = false
