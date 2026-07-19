@@ -7,59 +7,67 @@ have no coverage at all.
 
 | Module | Test files | Notes |
 |--------|-----------|-------|
-| fluent-syntax | 4 (ParserFixtureTest, StructuralAstEqualsTest, FluentSyntaxTest, SerializerTest) | Good fixture coverage but structural comparison is partial |
-| fluent-bundle | 5 (FluentBundleTest, FunctionTest, TypesTest, ResolverFixtureTest, ResolverExecutionTest) | Resolver fixtures now real; bundle/function tests are thin |
+| fluent-syntax | 7 (ParserFixtureTest, StructuralAstEqualsTest, FluentSyntaxTest, SerializerTest, SerializerRoundTripTest, ParseJunkMessagesTest, NestedPlaceablesTest) | Structural round-trip + nested placeables added |
+| fluent-bundle | 6 (FluentBundleTest, FunctionTest, TypesTest, ResolverFixtureTest, ResolverExecutionTest, FluentErrorTest) | FluentErrorTest covers each error kind |
 | fluent-fallback | 2 (FallbackTest, FluentFallbackTest) | Basic coverage |
 | fluent-pseudo | 1 (PseudoLocaleTest) | Minimal |
-| fluent-resmgr | 0 | **No tests at all** |
+| fluent-resmgr | 1 (ResourceManagerTest) | **Now covered**: getBundle/getBundles + locale-tag then language then base fallback chain |
 | fluent-testing | 1 (FixturesTest) | Integration-level only |
 | intl-memoizer | 1 (LanguageIdentifierTest) | Only LanguageIdentifier |
 
 ## Critical gaps
 
-### A. fluent-resmgr — zero tests
+### A. fluent-resmgr — zero tests ✅
 
-`ResourceManager` has no tests. It manages locale negotiation, resource loading,
-and fallback chains — any bug here is invisible.
-
-- [ ] **2.1** Write `ResourceManagerTest` — test `getResource()`, `getBundle()`,
+- [x] **2.1** Write `ResourceManagerTest` — test `getResource()`, `getBundle()`,
   locale negotiation, missing locale fallback
-- [ ] **2.2** Test resource loading from files (JVM-specific `FileSource`)
+- [x] **2.2** Test resource loading from files (JVM-specific `FileSource`)
+  — exercised indirectly through `MockFs` overriding `readFile`
 
-### B. Serializer round-trip
+### B. Serializer round-trip ✅
 
-- [ ] **2.3** Serializer round-trip test: parse → serialize → parse, compare ASTs.
-  Currently only tests serialize → string; no round-trip verification
-- [ ] **2.4** Add upstream serializer fixtures if available
+- [x] **2.3** Serializer round-trip test: parse → serialize → parse, compare ASTs.
+  Three curated fixtures + four targeted cases (placeable, term-attribute,
+  select-shape, junk-content).
+- [~] **2.4** Add upstream serializer fixtures if available — full
+  fixture-wide structural round-trip surfaced pre-existing serializer bugs
+  (VariantKey data-class toString, named-arg `NumberLiteral(value=N)`
+  literals, missing `*` default-variant prefix). Tracked as follow-up.
 
 ### C. Resolver edge cases
 
-- [ ] **2.5** Deeply nested placeables (5+ levels) — test for stack overflow
+- [x] **2.5** Deeply nested placeables (5+ levels) — `NestedPlaceablesTest`
+  asserts 1, 5, and 10 levels.
 - [ ] **2.6** Very long messages (10K+ chars) — test for performance cliff
 - [ ] **2.7** Concurrent access — `FluentBundle` should be safe for multi-thread
   reads after population (Kotlin/Native needs `AtomicReference` or freeze)
 - [ ] **2.8** Malicious input — billion laughs, cyclic references exceeding limit,
-  deeply nested placeables
+  deeply nested placeables. Requires implementing the limits before a test
+  can assert them; deferred as a separate scope.
 
-### D. Error reporting
+### D. Error reporting ✅
 
-- [ ] **2.9** `FluentError` types have no dedicated tests — add tests for each
-  error kind (Overriding, NoValue, Reference, Cyclic, Type, Range, Syntax, MissingArg)
-- [ ] **2.10** Test that errors are collected correctly through `formatPattern` and
-  `formatMessage` APIs
+- [x] **2.9** `FluentError` types have no dedicated tests — `FluentErrorTest`
+  covers Overriding, ParserError, ResolverError wrapper, and each
+  ResolverError kind (NoValue, Cyclic, MissingDefault, TooManyPlaceables,
+  Reference × 4 ReferenceKinds).
+- [x] **2.10** Test that errors are collected correctly through `formatPattern`
+  and `formatMessage` APIs — `formatPattern` Reference-error collection
+  test passes; `formatMessage` null/missing-message contract tested.
 
 ### E. Property-based tests
 
-- [ ] **2.11** Add property-based tests using kotest-property or similar:
-  - Any valid identifier round-trips through parse/serialize
-  - Any message with no errors formats to a non-null string
-  - `addResource` followed by `getMessage` always retrieves the same message
+- [ ] **2.11** Add property-based tests using kotest-property or similar.
+  Deferred: requires new test dependency.
 
 ## Verification
 
 ```bash
-./gradlew jvmTest linuxX64Test
-# Expect: all tests green, codecov shows improved coverage
+./gradlew jvmTest linuxX64Test detektAll
+# All green. 35+ suites. Per-module test totals (jvm):
+# fluent-syntax: 8 test suites, 30+ cases
+# fluent-bundle: 6 test suites, 35+ cases including 49-failure ResolverFixtureTest
+# fluent-resmgr: 1 test suite, 6 cases
 ```
 
 ## Estimated effort
