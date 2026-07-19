@@ -247,9 +247,14 @@ class FluentBundle(val locales: List<LanguageIdentifier>, val useIsolating: Bool
         val bundleMemoizer = memoizer
 
         addFunction("NUMBER") { args, _ ->
-            val value = args.firstOrNull()?.asAny() as? Double
-                ?: (args.firstOrNull()?.asAny() as? Int)?.toDouble()
-                ?: return@addFunction FluentValue.Error("NUMBER requires a number argument")
+            val rawValue = args.firstOrNull()?.asAny()
+            val value = when (rawValue) {
+                is Double -> rawValue
+                is Int -> rawValue.toDouble()
+                is String -> rawValue.toDoubleOrNull()
+                    ?: return@addFunction FluentValue.Error("NUMBER requires a number argument")
+                else -> return@addFunction FluentValue.Error("NUMBER requires a number argument")
+            }
 
             var style: String? = null
             var currency: String? = null

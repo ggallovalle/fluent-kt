@@ -183,7 +183,7 @@ class PatternResolver {
         is InlineExpression.MessageReference -> "{${expr.id.name}}"
         is InlineExpression.TermReference -> "{-${expr.id.name}}"
         is InlineExpression.VariableReference -> "{$${expr.id.name}}"
-        is InlineExpression.FunctionReference -> "${expr.id.name}(...)"
+        is InlineExpression.FunctionReference -> "${expr.id.name}()"
         is InlineExpression.StringLiteral -> expr.value
         is InlineExpression.NumberLiteral -> expr.value
         is InlineExpression.Placeable -> "{...}"
@@ -279,7 +279,7 @@ class PatternResolver {
         scope: Scope,
     ): FluentValue {
         val trackId = "-$id"
-        if (!scope.trackPlaceable(id)) {
+        if (!scope.trackPlaceable(trackId)) {
             return FluentValue.Str("{-$id}")
         }
         val term = scope.bundle.getTerm(id)
@@ -369,7 +369,7 @@ class PatternResolver {
                     ResolverError.Reference(ReferenceKind.FUNCTION, id),
                 ),
             )
-            return FluentValue.Str("{$id(...)}")
+            return FluentValue.Str("{$id()}")
         }
 
         val positionalArgs = arguments.positional.map { resolveInlineExpression(it, scope) }

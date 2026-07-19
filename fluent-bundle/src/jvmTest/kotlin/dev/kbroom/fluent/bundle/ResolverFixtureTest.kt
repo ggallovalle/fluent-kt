@@ -209,26 +209,22 @@ class TestScope(private val levels: List<ScopeLevel> = emptyList()) {
         }
 
         val bundles = mutableMapOf<String, FluentBundle>()
-        val allResources = levels.flatMap { it.resources }.map { it.source }
+        val accumulatedResources = mutableListOf<String>()
 
         for (level in levels) {
+            accumulatedResources.addAll(level.resources.map { it.source })
+
             if (level.bundles.isNotEmpty()) {
                 for (bundleConfig in level.bundles) {
                     val name = bundleConfig.name ?: "bundle_${bundles.size}"
-                    val bundle = createBundle(bundleConfig, defaults, level.resources.map { it.source })
+                    val bundle = createBundle(bundleConfig, defaults, accumulatedResources.toList())
                     bundles[name] = bundle
                 }
-            } else if (level.resources.isNotEmpty()) {
+            } else if (accumulatedResources.isNotEmpty()) {
                 val name = "bundle_${bundles.size}"
-                val bundle = createBundle(null, defaults, level.resources.map { it.source })
+                val bundle = createBundle(null, defaults, accumulatedResources.toList())
                 bundles[name] = bundle
             }
-        }
-
-        // If we got no bundles from any level (e.g. all levels had only suite
-        // names without resources/bundles), fall back to a single default.
-        if (bundles.isEmpty() && allResources.isNotEmpty()) {
-            bundles["default"] = createBundle(null, defaults, allResources)
         }
 
         return bundles
@@ -279,7 +275,7 @@ class TestScope(private val levels: List<ScopeLevel> = emptyList()) {
                 println("Warning: Failed to parse resource: ${resource.exceptionOrNull()?.message}")
                 continue
             }
-            bundle.addResource(resource.getOrThrow())
+            bundle.addResourceOverriding(resource.getOrThrow())
         }
     }
 }
