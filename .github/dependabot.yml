@@ -1,0 +1,31 @@
+version: 2
+
+updates:
+  # Gradle dependencies (the version catalog + plugin classpath).
+  - package-ecosystem: "gradle"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    commit-message:
+      prefix: "deps"
+    labels:
+      - "dependencies"
+    # Group all dep bumps in one PR so reviewers see the full diff.
+    groups:
+      gradle-minor:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+
+  # GitHub Actions workflow versions (keeps actions/checkout, setup-java, etc. current).
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    commit-message:
+      prefix: "ci"
+    labels:
+      - "ci"
