@@ -39,13 +39,14 @@ sealed class Entry {
      * @property attributes List of attributes (variant-specific values)
      * @property value A comment associated with this message
      */
-    @Serializable @SerialName("Message")
+    @Serializable
+    @SerialName("Message")
     data class Message(
         val id: Identifier,
         val value: Pattern? = null,
         val attributes: List<Attribute> = emptyList(),
         val comment: Comment? = null,
-        val docComment: DocComment? = null
+        val docComment: DocComment? = null,
     ) : Entry()
 
     /**
@@ -59,13 +60,14 @@ sealed class Entry {
      * @property attributes List of attributes
      * @property comment A comment associated with this term
      */
-    @Serializable @SerialName("Term")
+    @Serializable
+    @SerialName("Term")
     data class Term(
         val id: Identifier,
         val value: Pattern,
         val attributes: List<Attribute> = emptyList(),
         val comment: Comment? = null,
-        val docComment: DocComment? = null
+        val docComment: DocComment? = null,
     ) : Entry()
 
     /**
@@ -73,7 +75,8 @@ sealed class Entry {
      *
      * @property content The comment text, may span multiple lines if # is repeated
      */
-    @Serializable @SerialName("Comment")
+    @Serializable
+    @SerialName("Comment")
     data class Comment(val content: String) : Entry()
 
     /**
@@ -81,7 +84,8 @@ sealed class Entry {
      *
      * @property content The group comment text
      */
-    @Serializable @SerialName("GroupComment")
+    @Serializable
+    @SerialName("GroupComment")
     data class GroupComment(val content: String) : Entry()
 
     /**
@@ -89,7 +93,8 @@ sealed class Entry {
      *
      * @property content The resource comment text
      */
-    @Serializable @SerialName("ResourceComment")
+    @Serializable
+    @SerialName("ResourceComment")
     data class ResourceComment(val content: String) : Entry()
 
     /**
@@ -100,9 +105,11 @@ sealed class Entry {
      *
      * @property content The raw unparseable content
      */
-    @Serializable @SerialName("Junk")
+    @Serializable
+    @SerialName("Junk")
     data class Junk(val content: String) : Entry()
 }
+
 /**
  * A documentation comment associated with a message or term.
  *
@@ -113,10 +120,7 @@ sealed class Entry {
  * @property variables List of variable documentations
  */
 @Serializable
-data class DocComment(
-    val description: String = "",
-    val variables: List<VariableDoc> = emptyList()
-)
+data class DocComment(val description: String = "", val variables: List<VariableDoc> = emptyList())
 
 /**
  * Documentation for a single variable in a message or term.
@@ -131,7 +135,7 @@ data class VariableDoc(
     val name: String,
     val type: String = "",
     val description: String = "",
-    val defaultValue: String = ""
+    val defaultValue: String = "",
 )
 
 /**
@@ -167,7 +171,8 @@ sealed class PatternElement {
      *
      * @property value The text content
      */
-    @Serializable @SerialName("TextElement")
+    @Serializable
+    @SerialName("TextElement")
     data class TextElement(val value: String) : PatternElement()
 
     /**
@@ -177,7 +182,8 @@ sealed class PatternElement {
      *
      * @property expression The expression inside the placeable
      */
-    @Serializable @SerialName("Placeable")
+    @Serializable
+    @SerialName("Placeable")
     data class Placeable(val expression: Expression) : PatternElement()
 }
 
@@ -208,18 +214,17 @@ sealed class Expression {
      * @property selector The expression to evaluate for selection
      * @property variants The list of possible variants
      */
-    @Serializable @SerialName("Select")
-    data class Select(
-        val selector: InlineExpression,
-        val variants: List<Variant>
-    ) : Expression()
+    @Serializable
+    @SerialName("Select")
+    data class Select(val selector: InlineExpression, val variants: List<Variant>) : Expression()
 
     /**
      * An inline expression - a simple value.
      *
      * @property expression The underlying inline expression
      */
-    @Serializable @SerialName("Inline")
+    @Serializable
+    @SerialName("Inline")
     data class Inline(val expression: InlineExpression) : Expression()
 }
 
@@ -232,11 +237,13 @@ sealed class Expression {
 @Serializable
 sealed class InlineExpression {
     /** A string literal value. */
-    @Serializable @SerialName("StringLiteral")
+    @Serializable
+    @SerialName("StringLiteral")
     data class StringLiteral(val value: String) : InlineExpression()
 
     /** A number literal value. */
-    @Serializable @SerialName("NumberLiteral")
+    @Serializable
+    @SerialName("NumberLiteral")
     data class NumberLiteral(val value: String) : InlineExpression()
 
     /**
@@ -245,11 +252,9 @@ sealed class InlineExpression {
      * @property id The function name
      * @property arguments The function arguments
      */
-    @Serializable @SerialName("FunctionReference")
-    data class FunctionReference(
-        val id: Identifier,
-        val arguments: CallArguments
-    ) : InlineExpression()
+    @Serializable
+    @SerialName("FunctionReference")
+    data class FunctionReference(val id: Identifier, val arguments: CallArguments) : InlineExpression()
 
     /**
      * A reference to another message.
@@ -257,11 +262,9 @@ sealed class InlineExpression {
      * @property id The message identifier
      * @property attribute Optional attribute name for accessing message attributes
      */
-    @Serializable @SerialName("MessageReference")
-    data class MessageReference(
-        val id: Identifier,
-        val attribute: Identifier? = null
-    ) : InlineExpression()
+    @Serializable
+    @SerialName("MessageReference")
+    data class MessageReference(val id: Identifier, val attribute: Identifier? = null) : InlineExpression()
 
     /**
      * A reference to a term.
@@ -270,11 +273,12 @@ sealed class InlineExpression {
      * @property attribute Optional attribute name
      * @property arguments Optional arguments for parameterized terms
      */
-    @Serializable @SerialName("TermReference")
+    @Serializable
+    @SerialName("TermReference")
     data class TermReference(
         val id: Identifier,
         val attribute: Identifier? = null,
-        val arguments: CallArguments? = null
+        val arguments: CallArguments? = null,
     ) : InlineExpression()
 
     /**
@@ -282,7 +286,8 @@ sealed class InlineExpression {
      *
      * @property id The variable name (without $ prefix)
      */
-    @Serializable @SerialName("VariableReference")
+    @Serializable
+    @SerialName("VariableReference")
     data class VariableReference(val id: Identifier) : InlineExpression()
 
     /**
@@ -292,7 +297,8 @@ sealed class InlineExpression {
      *
      * @property expression The wrapped expression
      */
-    @Serializable @SerialName("Placeable")
+    @Serializable
+    @SerialName("Placeable")
     data class Placeable(val expression: Expression) : InlineExpression()
 }
 
@@ -304,11 +310,7 @@ sealed class InlineExpression {
  * @property default True if this is the default variant
  */
 @Serializable
-data class Variant(
-    val key: VariantKey,
-    val value: Pattern,
-    val default: Boolean
-)
+data class Variant(val key: VariantKey, val value: Pattern, val default: Boolean)
 
 /**
  * The key for a variant in a select expression.
@@ -316,11 +318,13 @@ data class Variant(
 @Serializable
 sealed class VariantKey {
     /** An identifier-based variant key (e.g., [one], [few], [many]). */
-    @Serializable @SerialName("Identifier")
+    @Serializable
+    @SerialName("Identifier")
     data class Identifier(val name: String) : VariantKey()
 
     /** A number-based variant key (e.g., [1], [2]). */
-    @Serializable @SerialName("NumberLiteral")
+    @Serializable
+    @SerialName("NumberLiteral")
     data class NumberLiteral(val value: String) : VariantKey()
 }
 
@@ -333,7 +337,7 @@ sealed class VariantKey {
 @Serializable
 data class CallArguments(
     val positional: List<InlineExpression> = emptyList(),
-    val named: List<NamedArgument> = emptyList()
+    val named: List<NamedArgument> = emptyList(),
 )
 
 /**

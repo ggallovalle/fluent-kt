@@ -29,7 +29,7 @@ data class NumberFormatOptions(
     val compactDisplay: CompactDisplay = CompactDisplay.Short,
     val notation: Notation = Notation.Standard,
     val unit: String? = null,
-    val unitDisplay: UnitDisplay = UnitDisplay.Short
+    val unitDisplay: UnitDisplay = UnitDisplay.Short,
 )
 
 enum class NumberFormatStyle {
@@ -37,43 +37,43 @@ enum class NumberFormatStyle {
     Percent,
     Currency,
     Unit,
-    Compact
+    Compact,
 }
 
 enum class CurrencyDisplayMode {
     Symbol,
     Code,
-    Name
+    Name,
 }
 
 enum class CurrencySign {
     Standard,
-    Accounting
+    Accounting,
 }
 
 enum class SignDisplay {
     Auto,
     Always,
     Never,
-    ExceptZero
+    ExceptZero,
 }
 
 enum class CompactDisplay {
     Short,
-    Long
+    Long,
 }
 
 enum class Notation {
     Standard,
     Scientific,
     Engineering,
-    Compact
+    Compact,
 }
 
 enum class UnitDisplay {
     Long,
     Short,
-    Narrow
+    Narrow,
 }
 
 /**
@@ -94,40 +94,37 @@ data class DateTimeFormatOptions(
     val hour12: Boolean? = null,
     val timeZone: String? = null,
     val calendar: String? = null,
-    val numberingSystem: String? = null
+    val numberingSystem: String? = null,
 )
 
 enum class DateTimeStyle {
     Full,
     Long,
     Medium,
-    Short
+    Short,
 }
 
 enum class TextStyle {
     Long,
     Short,
-    Narrow
+    Narrow,
 }
 
 /**
  * List formatting options.
  */
-data class ListFormatOptions(
-    val type: ListType = ListType.Conjunction,
-    val style: ListStyle = ListStyle.Long
-)
+data class ListFormatOptions(val type: ListType = ListType.Conjunction, val style: ListStyle = ListStyle.Long)
 
 enum class ListType {
-    Conjunction,  // "a, b, and c"
-    Disjunction,  // "a, b, or c"
-    Unit          // "a, b, c"
+    Conjunction, // "a, b, and c"
+    Disjunction, // "a, b, or c"
+    Unit, // "a, b, c"
 }
 
 enum class ListStyle {
     Long,
     Short,
-    Narrow
+    Narrow,
 }
 
 /**
@@ -136,10 +133,10 @@ enum class ListStyle {
 data class PluralRulesOptions(
     val type: PluralRuleType = PluralRuleType.Cardinal,
     val minimumFractionDigits: Int? = null,
-    val maximumFractionDigits: Int? = null
+    val maximumFractionDigits: Int? = null,
 )
 
 enum class PluralRuleType {
     Cardinal,
-    Ordinal
+    Ordinal,
 }

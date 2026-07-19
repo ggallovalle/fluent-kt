@@ -1,6 +1,7 @@
 package dev.kbroom.fluent.syntax.serializer
 
 import dev.kbroom.fluent.syntax.CallArguments
+import dev.kbroom.fluent.syntax.DocComment
 import dev.kbroom.fluent.syntax.Entry
 import dev.kbroom.fluent.syntax.Expression
 import dev.kbroom.fluent.syntax.Identifier
@@ -9,17 +10,13 @@ import dev.kbroom.fluent.syntax.Pattern
 import dev.kbroom.fluent.syntax.PatternElement
 import dev.kbroom.fluent.syntax.Resource
 import dev.kbroom.fluent.syntax.VariantKey
-import dev.kbroom.fluent.syntax.DocComment
-import dev.kbroom.fluent.syntax.VariableDoc
 /**
  * Options for the [Serializer].
  *
  * @property withJunk If true, serialized junk entries (unparseable content) in the output.
  *                   Typically set to false for clean round-trip serialization.
  */
-data class SerializerOptions(
-    val withJunk: Boolean = false
-)
+data class SerializerOptions(val withJunk: Boolean = false)
 
 /**
  * Serializes an AST [Resource] back to a Fluent Translation List (FTL) string.
@@ -37,10 +34,8 @@ data class SerializerOptions(
  *
  * @see SerializerOptions for serialization configuration
  */
-class Serializer(
-    private val options: SerializerOptions = SerializerOptions()
-) {
-    
+class Serializer(private val options: SerializerOptions = SerializerOptions()) {
+
     /**
      * Serializes the given [Resource] to an FTL string.
      *
@@ -55,14 +50,19 @@ class Serializer(
         }
         return sb.toString()
     }
-    
+
     private fun serializeEntry(entry: Entry, sb: StringBuilder) {
         when (entry) {
             is Entry.Message -> serializeMessage(entry, sb)
+
             is Entry.Term -> serializeTerm(entry, sb)
+
             is Entry.Comment -> serializeComment(entry, sb)
+
             is Entry.GroupComment -> serializeGroupComment(entry, sb)
+
             is Entry.ResourceComment -> serializeResourceComment(entry, sb)
+
             is Entry.Junk -> {
                 if (options.withJunk) {
                     sb.append(entry.content)
@@ -70,13 +70,13 @@ class Serializer(
             }
         }
     }
-    
+
     private fun serializeMessage(msg: Entry.Message, sb: StringBuilder) {
         // Handle docComment first (overrides inline comment when present)
         msg.docComment?.let { doc ->
             serializeDocComment(doc, "#", sb)
         }
-        
+
         // Fall back to inline comment if no docComment
         if (msg.docComment == null) {
             msg.comment?.let { comment ->
@@ -86,7 +86,7 @@ class Serializer(
                 }
             }
         }
-        
+
         sb.append("${msg.id.name} = ")
         msg.value?.let { pattern ->
             serializePattern(pattern, sb)
@@ -96,13 +96,13 @@ class Serializer(
             serializePattern(attr.value, sb)
         }
     }
-    
+
     private fun serializeTerm(term: Entry.Term, sb: StringBuilder) {
         // Handle docComment first
         term.docComment?.let { doc ->
             serializeDocComment(doc, "#", sb)
         }
-        
+
         // Fall back to inline comment if no docComment
         if (term.docComment == null) {
             term.comment?.let { comment ->
@@ -112,7 +112,7 @@ class Serializer(
                 }
             }
         }
-        
+
         sb.append("-${term.id.name} = ")
         serializePattern(term.value, sb)
         for (attr in term.attributes) {
@@ -120,11 +120,12 @@ class Serializer(
             serializePattern(attr.value, sb)
         }
     }
-    
+
     private fun serializePattern(pattern: Pattern, sb: StringBuilder) {
         for (element in pattern.elements) {
             when (element) {
                 is PatternElement.TextElement -> sb.append(element.value)
+
                 is PatternElement.Placeable -> {
                     sb.append("{ ")
                     serializeExpression(element.expression, sb)
@@ -133,7 +134,7 @@ class Serializer(
             }
         }
     }
-    
+
     private fun serializeExpression(expr: Expression, sb: StringBuilder) {
         when (expr) {
             is Expression.Select -> {
@@ -146,30 +147,37 @@ class Serializer(
                     sb.append("\n")
                 }
             }
+
             is Expression.Inline -> {
                 serializeInlineExpression(expr.expression, sb)
             }
         }
     }
-    
+
     private fun serializeInlineExpression(expr: InlineExpression, sb: StringBuilder) {
         when (expr) {
             is InlineExpression.StringLiteral -> sb.append("\"${expr.value}\"")
+
             is InlineExpression.NumberLiteral -> sb.append(expr.value)
+
             is InlineExpression.MessageReference -> {
                 sb.append(expr.id.name)
                 expr.attribute?.let { sb.append(".${it.name}") }
             }
+
             is InlineExpression.TermReference -> {
                 sb.append("-${expr.id.name}")
                 expr.attribute?.let { sb.append(".${it.name}") }
                 expr.arguments?.let { serializeCallArguments(it, sb) }
             }
+
             is InlineExpression.VariableReference -> sb.append("\$${expr.id.name}")
+
             is InlineExpression.FunctionReference -> {
                 sb.append(expr.id.name)
                 serializeCallArguments(expr.arguments, sb)
             }
+
             is InlineExpression.Placeable -> {
                 sb.append("{ ")
                 serializeExpression(expr.expression, sb)
@@ -177,7 +185,7 @@ class Serializer(
             }
         }
     }
-    
+
     private fun serializeCallArguments(args: CallArguments, sb: StringBuilder) {
         sb.append("(")
         val positional = args.positional.map {
@@ -196,7 +204,7 @@ class Serializer(
         }
         sb.append(")")
     }
-    
+
     private fun serializeVariantKey(key: VariantKey, sb: StringBuilder) {
         when (key) {
             is VariantKey.Identifier -> sb.append(key.name)
@@ -220,21 +228,21 @@ class Serializer(
             }
         }
     }
-    
+
     private fun serializeComment(comment: Entry.Comment, sb: StringBuilder) {
         val lines = comment.content.lines().filter { it.isNotEmpty() }
         for (line in lines) {
             sb.append("# $line\n")
         }
     }
-    
+
     private fun serializeGroupComment(comment: Entry.GroupComment, sb: StringBuilder) {
         val lines = comment.content.lines().filter { it.isNotEmpty() }
         for (line in lines) {
             sb.append("## $line\n")
         }
     }
-    
+
     private fun serializeResourceComment(comment: Entry.ResourceComment, sb: StringBuilder) {
         val lines = comment.content.lines().filter { it.isNotEmpty() }
         for (line in lines) {
@@ -250,6 +258,5 @@ class Serializer(
  * @param options Serialization options
  * @return A string in Fluent Translation List format
  */
-fun serialize(resource: Resource, options: SerializerOptions = SerializerOptions()): String {
-    return Serializer(options).serialize(resource)
-}
+fun serialize(resource: Resource, options: SerializerOptions = SerializerOptions()): String =
+    Serializer(options).serialize(resource)

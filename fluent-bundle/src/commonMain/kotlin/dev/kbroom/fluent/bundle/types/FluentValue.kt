@@ -14,42 +14,43 @@ sealed class FluentValue {
      */
     @Serializable
     data class Str(val value: String) : FluentValue()
-    
+
     /**
      * A number value with optional formatting.
      */
     @Serializable
     data class Number(val value: FluentNumber) : FluentValue()
-    
+
     /**
      * A custom type value.
      */
     @Serializable
     data class Custom(val value: FluentType) : FluentValue()
-    
+
     /**
      * A pattern value (returned for attribute references to allow proper select handling).
      */
     @Serializable
     data class Pattern(val pattern: dev.kbroom.fluent.syntax.Pattern) : FluentValue()
-    
+
     /**
      * Represents no value (null equivalent).
      */
     @Serializable
     data object None : FluentValue()
-    
+
     /**
      * An error value.
      */
     @Serializable
     data class Error(val message: String) : FluentValue()
-    
+
     /**
      * Convert FluentValue to display string.
      */
     fun asString(): String = when (this) {
         is Str -> value
+
         is Number -> {
             val v = value.value
             val intValue = v.toLong()
@@ -59,12 +60,16 @@ sealed class FluentValue {
                 v.toString()
             }
         }
+
         is Custom -> value.asString()
+
         is Pattern -> throw IllegalStateException("Pattern should be resolved before asString()")
+
         is None -> ""
+
         is Error -> "{$message}"
     }
-    
+
     /**
      * Get the underlying value as Any.
      */
@@ -82,10 +87,7 @@ sealed class FluentValue {
  * Represents a number with formatting options.
  */
 @Serializable
-data class FluentNumber(
-    val value: Double,
-    val options: FluentNumberOptions = FluentNumberOptions()
-)
+data class FluentNumber(val value: Double, val options: FluentNumberOptions = FluentNumberOptions())
 
 /**
  * Options for number formatting.
@@ -96,7 +98,7 @@ data class FluentNumberOptions(
     val currency: String? = null,
     val currencyDisplay: CurrencyDisplay? = null,
     val minimumFractionDigits: Int? = null,
-    val maximumFractionDigits: Int? = null
+    val maximumFractionDigits: Int? = null,
 )
 
 /**
@@ -107,7 +109,7 @@ enum class NumberStyle {
     DECIMAL,
     CURRENCY,
     PERCENT,
-    UNIT
+    UNIT,
 }
 
 /**
@@ -117,7 +119,7 @@ enum class NumberStyle {
 enum class CurrencyDisplay {
     SYMBOL,
     CODE,
-    NAME
+    NAME,
 }
 
 /**
@@ -148,19 +150,21 @@ fun fluentValueOf(value: Any?): FluentValue = when (value) {
  */
 fun getPluralCategory(value: Double, locale: String): PluralCategory {
     val intValue = floor(value).toInt()
-    
+
     // CLDR plural rules for common locales
     return when {
         locale.startsWith("en") -> when (intValue) {
             1 -> PluralCategory.ONE
             else -> PluralCategory.OTHER
         }
+
         locale.startsWith("ru") || locale.startsWith("uk") -> when {
             intValue % 10 == 1 && intValue % 100 != 11 -> PluralCategory.ONE
             intValue % 10 in 2..4 && intValue % 100 !in 12..14 -> PluralCategory.FEW
             intValue % 10 == 0 || intValue % 10 in 5..9 || intValue % 100 in 11..14 -> PluralCategory.MANY
             else -> PluralCategory.OTHER
         }
+
         locale.startsWith("ar") -> when (intValue) {
             0 -> PluralCategory.ZERO
             1 -> PluralCategory.ONE
@@ -169,6 +173,7 @@ fun getPluralCategory(value: Double, locale: String): PluralCategory {
             in 11..99 -> PluralCategory.MANY
             else -> PluralCategory.OTHER
         }
+
         else -> PluralCategory.OTHER
     }
 }
@@ -182,5 +187,5 @@ enum class PluralCategory {
     TWO,
     FEW,
     MANY,
-    OTHER
+    OTHER,
 }

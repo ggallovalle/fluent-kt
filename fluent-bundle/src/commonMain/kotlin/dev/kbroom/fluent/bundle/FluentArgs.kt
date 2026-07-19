@@ -11,63 +11,63 @@ import dev.kbroom.fluent.bundle.types.fluentValueOf
 class FluentArgs {
     private val positional: MutableList<FluentValue> = mutableListOf()
     private val named: MutableMap<String, FluentValue> = LinkedHashMap()
-    
+
     /**
      * Add a positional argument.
      */
     fun add(value: FluentValue) {
         positional.add(value)
     }
-    
+
     /**
      * Add a positional argument from any value.
      */
     fun add(value: Any?) {
         positional.add(fluentValueOf(value))
     }
-    
+
     /**
      * Set a named argument.
      */
     fun set(key: String, value: Any?) {
         named[key] = fluentValueOf(value)
     }
-    
+
     /**
      * Get a positional argument by index.
      */
     fun getPositional(index: Int): FluentValue? = positional.getOrNull(index)
-    
+
     /**
      * Get a named argument by key.
      */
     fun get(key: String): FluentValue? = named[key]
-    
+
     /**
      * Get all positional arguments.
      */
     fun positionalArgs(): List<FluentValue> = positional.toList()
-    
+
     /**
      * Get all named arguments as map.
      */
     fun namedArgs(): Map<String, FluentValue> = named.toMap()
-    
+
     /**
      * Get all arguments as map (named only).
      */
     fun toMap(): Map<String, FluentValue> = named.toMap()
-    
+
     /**
      * Check if a named argument exists.
      */
     fun contains(key: String): Boolean = named.containsKey(key)
-    
+
     /**
      * Get the number of positional arguments.
      */
     fun positionalCount(): Int = positional.size
-    
+
     /**
      * Get the number of named arguments.
      */

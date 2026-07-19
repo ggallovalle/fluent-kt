@@ -1,14 +1,12 @@
 package dev.kbroom.fluent.bundle
 
-import dev.kbroom.fluent.syntax.Entry
-import dev.kbroom.fluent.syntax.Pattern
-import dev.kbroom.fluent.syntax.PatternElement
 import dev.kbroom.fluent.bundle.resolver.PatternResolver
 import dev.kbroom.fluent.bundle.resolver.Scope
-import dev.kbroom.fluent.bundle.types.FluentNumber
 import dev.kbroom.fluent.bundle.types.FluentValue
-import dev.kbroom.fluent.intl.LanguageIdentifier
 import dev.kbroom.fluent.intl.IntlLangMemoizer
+import dev.kbroom.fluent.intl.LanguageIdentifier
+import dev.kbroom.fluent.syntax.Entry
+import dev.kbroom.fluent.syntax.Pattern
 
 /**
  * FluentBundle is the main runtime for localization.
@@ -27,17 +25,15 @@ import dev.kbroom.fluent.intl.IntlLangMemoizer
  * @property locales The list of locales this bundle supports (primary locale is first)
  * @property useIsolating Whether to use Unicode isolation marks for bidirectional text
  */
-class FluentBundle(
-    val locales: List<LanguageIdentifier>,
-    val useIsolating: Boolean = true,
-) {
+@Suppress("TooManyFunctions")
+class FluentBundle(val locales: List<LanguageIdentifier>, val useIsolating: Boolean = true) {
     private val entries: MutableMap<String, Entry> = linkedMapOf()
     private val functions: MutableMap<String, (List<FluentValue>, FluentArgs) -> FluentValue> = mutableMapOf()
     private var transform: ((String) -> String)? = null
     private var formatter: ((FluentValue, IntlLangMemoizer) -> String?)? = null
     private val memoizer: IntlLangMemoizer = IntlLangMemoizer()
     private val resolver = PatternResolver()
-    
+
     /**
      * Add a resource to this bundle.
      *
@@ -49,7 +45,7 @@ class FluentBundle(
      */
     fun addResource(resource: FluentResource): Result<Unit> {
         val errors = mutableListOf<FluentError>()
-        
+
         for (entry in resource.body) {
             when (entry) {
                 is Entry.Message -> {
@@ -59,6 +55,7 @@ class FluentBundle(
                     }
                     entries[entry.id.name] = entry
                 }
+
                 is Entry.Term -> {
                     val existing = entries[entry.id.name]
                     if (existing != null) {
@@ -66,17 +63,18 @@ class FluentBundle(
                     }
                     entries[entry.id.name] = entry
                 }
+
                 else -> { /* Comments are ignored */ }
             }
         }
-        
+
         return if (errors.isEmpty()) {
             Result.success(Unit)
         } else {
             Result.failure(Exception(errors.joinToString { it.toString() }))
         }
     }
-    
+
     /**
      * Add a resource, overwriting any existing messages or terms with the same ID.
      *
@@ -93,7 +91,7 @@ class FluentBundle(
         }
         return Result.success(Unit)
     }
-    
+
     /**
      * Get a message by its ID.
      *
@@ -107,17 +105,15 @@ class FluentBundle(
             else -> null
         }
     }
-    
+
     /**
      * Check if a message exists.
      *
      * @param id The message ID
      * @return true if the message exists
      */
-    fun hasMessage(id: String): Boolean {
-        return entries[id] is Entry.Message
-    }
-    
+    fun hasMessage(id: String): Boolean = entries[id] is Entry.Message
+
     /**
      * Get a term by its ID.
      *
@@ -134,7 +130,7 @@ class FluentBundle(
             else -> null
         }
     }
-    
+
     /**
      * Format a pattern directly.
      *
@@ -146,13 +142,13 @@ class FluentBundle(
     fun formatPattern(
         pattern: Pattern,
         args: FluentArgs? = null,
-        errors: MutableList<FluentError> = mutableListOf()
+        errors: MutableList<FluentError> = mutableListOf(),
     ): String {
         val scope = Scope(this, args, errors)
         val result = resolver.resolve(pattern, scope)
         return result
     }
-    
+
     /**
      * Format a message by its ID, resolving all references.
      *
@@ -167,7 +163,7 @@ class FluentBundle(
         val scope = Scope(this, args, errors)
         return resolver.resolve(pattern, scope)
     }
-    
+
     /**
      * Alias for [formatMessage].
      *
@@ -175,10 +171,8 @@ class FluentBundle(
      * @param args Optional arguments
      * @return The formatted string, or null if not found
      */
-    fun format(id: String, args: FluentArgs? = null): String? {
-        return formatMessage(id, args)
-    }
-    
+    fun format(id: String, args: FluentArgs? = null): String? = formatMessage(id, args)
+
     /**
      * Set whether to use Unicode isolation marks.
      *
@@ -186,11 +180,12 @@ class FluentBundle(
      *
      * @param value true to enable isolation (default), false to disable
      */
+    @Suppress("UnusedParameter")
     fun setUseIsolating(value: Boolean) {
         // Note: This is a constructor parameter, so changes won't affect already-parsed patterns
         // A full implementation would need to make this a mutable property
     }
-    
+
     /**
      * Set a transform function to apply to all formatted values.
      *
@@ -201,19 +196,19 @@ class FluentBundle(
     fun setTransform(fn: (String) -> String) {
         transform = fn
     }
-    
+
     /**
      * Clear the transform function.
      */
     fun clearTransform() {
         transform = null
     }
-    
+
     /**
      * Get the current transform function.
      */
     fun getTransform(): ((String) -> String)? = transform
-    
+
     /**
      * Set a custom formatter for FluentValue types.
      *
@@ -222,7 +217,7 @@ class FluentBundle(
     fun setFormatter(fn: (FluentValue, IntlLangMemoizer) -> String?) {
         formatter = fn
     }
-    
+
     /**
      * Add a custom function.
      *
@@ -234,89 +229,15 @@ class FluentBundle(
     fun addFunction(id: String, fn: (List<FluentValue>, FluentArgs) -> FluentValue) {
         functions[id] = fn
     }
-    
+
     /**
      * Get a function by name.
      *
      * @param id The function name
      * @return The function, or null if not found
      */
-    fun getFunction(id: String): ((List<FluentValue>, FluentArgs) -> FluentValue)? {
-        return functions[id]
-    }
-    
-    /**
-     * Add built-in functions (NUMBER, PLURAL, etc.) to this bundle.
-     */
-    fun addBuiltins() {
-        val bundleLocales = locales
-        val bundleMemoizer = memoizer
-        
-        addFunction("NUMBER") { args, _ ->
-            val value = args.firstOrNull()?.asAny() as? Double 
-                ?: (args.firstOrNull()?.asAny() as? Int)?.toDouble()
-                ?: return@addFunction FluentValue.Error("NUMBER requires a number argument")
-            
-            var style: String? = null
-            var currency: String? = null
-            var currencyDisplay: String? = null
-            var minimumFractionDigits: Int? = null
-            var maximumFractionDigits: Int? = null
-            var useGrouping: Boolean? = null
-            
-            // Simple argument parsing for NUMBER
-            if (args.size > 1) {
-                val second = args[1].asAny() as? Map<*, *>
-                if (second != null) {
-                    style = second["style"] as? String
-                    currency = second["currency"] as? String
-                    currencyDisplay = second["currencyDisplay"] as? String
-                    minimumFractionDigits = second["minimumFractionDigits"] as? Int
-                    maximumFractionDigits = second["maximumFractionDigits"] as? Int
-                    useGrouping = second["useGrouping"] as? Boolean
-                }
-            }
-            
-            val result = IntlHelpers.formatNumber(
-                value, 
-                bundleLocales.first(), 
-                bundleMemoizer,
-                style,
-                currency,
-                currencyDisplay,
-                minimumFractionDigits,
-                maximumFractionDigits,
-                useGrouping
-            )
-            if (result != null) FluentValue.Str(result) else FluentValue.Error("NUMBER formatting failed")
-        }
-        
-        addFunction("PLURAL") { args, _ ->
-            val value = args.firstOrNull()?.asAny() as? Double 
-                ?: (args.firstOrNull()?.asAny() as? Int)?.toDouble()
-                ?: return@addFunction FluentValue.Str("other")
-            
-            val category = IntlHelpers.getPluralCategory(value, bundleLocales.first(), bundleMemoizer)
-            FluentValue.Str(category)
-        }
-        
-        addFunction("CONCAT") { args, _ ->
-            val result = args.joinToString("") { it.asString() }
-            FluentValue.Str(result)
-        }
-        
-        addFunction("SUM") { args, _ ->
-            val sum = args.mapNotNull { 
-                (it.asAny() as? Double) ?: ((it.asAny() as? Int)?.toDouble())
-            }.sum()
-            FluentValue.Number(FluentNumber(sum))
-        }
-        
-        addFunction("IDENTITY") { args, _ ->
-            args.firstOrNull() ?: FluentValue.None
-        }
-    }
-    
+    fun getFunction(id: String): ((List<FluentValue>, FluentArgs) -> FluentValue)? = functions[id]
+
     /**
      * Get the memoizer for caching formatted values.
      */

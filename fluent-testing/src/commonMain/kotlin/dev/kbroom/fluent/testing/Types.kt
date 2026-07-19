@@ -1,17 +1,13 @@
 package dev.kbroom.fluent.testing
 
 /**
- * Types matching Rust fluent-testing.
- */
-
-/**
  * A localized message value.
  */
 data class L10nMessage(val value: String) {
     companion object {
         fun from(value: String?) = if (value != null) L10nMessage(value) else null
     }
-    
+
     override fun toString(): String = value
 }
 
@@ -25,7 +21,7 @@ data class L10nAttribute(val name: String, val value: String)
  */
 data class L10nKey(val key: String, val attribute: String? = null) {
     fun toQueryId(): String = if (attribute != null) "$key.$attribute" else key
-    
+
     override fun toString(): String = toQueryId()
 }
 
@@ -36,7 +32,7 @@ enum class ExceptionalContext {
     None,
     OptionalResourceMissingFromLocale,
     RequiredResourceMissing,
-    Error
+    Error,
 }
 
 /**
@@ -46,7 +42,7 @@ data class L10nQuery(
     val key: String,
     val args: Map<String, Any?>? = null,
     val expected: String?,
-    val context: ExceptionalContext = ExceptionalContext.None
+    val context: ExceptionalContext = ExceptionalContext.None,
 )
 
 /**
@@ -55,5 +51,9 @@ data class L10nQuery(
 fun query(key: String, expected: String, context: ExceptionalContext = ExceptionalContext.None) =
     L10nQuery(key, null, expected, context)
 
-fun query(key: String, args: Map<String, Any?>, expected: String, context: ExceptionalContext = ExceptionalContext.None) =
-    L10nQuery(key, args, expected, context)
+fun query(
+    key: String,
+    args: Map<String, Any?>,
+    expected: String,
+    context: ExceptionalContext = ExceptionalContext.None,
+) = L10nQuery(key, args, expected, context)

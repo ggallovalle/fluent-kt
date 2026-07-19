@@ -1,7 +1,6 @@
 package dev.kbroom.fluent.bundle
 
 import dev.kbroom.fluent.syntax.Entry
-import dev.kbroom.fluent.syntax.Resource as AstResource
 import dev.kbroom.fluent.syntax.parser.FluentParser
 
 /**
@@ -17,32 +16,30 @@ import dev.kbroom.fluent.syntax.parser.FluentParser
  * @see FluentParser for parsing
  */
 class FluentResource(val body: List<Entry>) {
-    
+
     companion object {
         /**
-         * Parse FTL source code into a FluentResource.
+         * Try to parse a FTL source string into a [FluentResource].
          *
-         * @param source The FTL source code to parse
+         * @param source The FTL source text
          * @return Result containing the FluentResource on success, or failure with parse error
          */
-        fun tryNew(source: String): Result<FluentResource> {
-            return try {
-                val parser = FluentParser()
-                val resource = parser.parse(source)
-                Result.success(FluentResource(resource.body))
-            } catch (e: Exception) {
-                Result.failure(e)
-            }
+        fun tryNew(source: String): Result<FluentResource> = try {
+            val parser = FluentParser()
+            val resource = parser.parse(source)
+            Result.success(FluentResource(resource.body))
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            Result.failure(e)
         }
     }
-    
+
     /**
      * Get all messages in this resource.
      *
      * @return List of message entries
      */
     fun messages(): List<Entry.Message> = body.filterIsInstance<Entry.Message>()
-    
+
     /**
      * Get all terms in this resource.
      *

@@ -2,6 +2,7 @@ package dev.kbroom.fluent.syntax.parser
 
 import dev.kbroom.fluent.syntax.Attribute
 import dev.kbroom.fluent.syntax.CallArguments
+import dev.kbroom.fluent.syntax.DocComment
 import dev.kbroom.fluent.syntax.Entry
 import dev.kbroom.fluent.syntax.Expression
 import dev.kbroom.fluent.syntax.Identifier
@@ -10,10 +11,9 @@ import dev.kbroom.fluent.syntax.NamedArgument
 import dev.kbroom.fluent.syntax.Pattern
 import dev.kbroom.fluent.syntax.PatternElement
 import dev.kbroom.fluent.syntax.Resource
+import dev.kbroom.fluent.syntax.VariableDoc
 import dev.kbroom.fluent.syntax.Variant
 import dev.kbroom.fluent.syntax.VariantKey
-import dev.kbroom.fluent.syntax.DocComment
-import dev.kbroom.fluent.syntax.VariableDoc
 
 /**
  * A parser for Fluent Translation Lists (FTL).
@@ -45,19 +45,19 @@ import dev.kbroom.fluent.syntax.VariableDoc
  * @see ParserError
  */
 class FluentParser {
-    
+
     private var pos = 0
     private var source = ""
     private val errors = mutableListOf<ParserError>()
-    
+
     fun parse(source: String): Resource {
         this.source = source
         this.pos = 0
         this.errors.clear()
-        
+
         val body = mutableListOf<Entry>()
         var bufferedComment: Entry? = null
-        
+
         while (pos < source.length) {
             // Check for blank line BEFORE skipping whitespace
             if (peek() == '\n' || peek() == '\r') {
@@ -68,9 +68,9 @@ class FluentParser {
                 pos++
                 continue
             }
-            
+
             skipWhitespace()
-            
+
             // Check for blank line after whitespace
             if (peek() == '\n' || peek() == '\r') {
                 if (bufferedComment != null) {
@@ -80,20 +80,22 @@ class FluentParser {
                 pos++
                 continue
             }
-            
+
             if (pos >= source.length) break
-            
+
             // Check for comment
             when {
                 peek() == '#' -> {
                     bufferedComment = parseComment()
                 }
+
                 peek() == '-' -> {
                     val termEntry = parseTerm()
                     val boundTerm = bindDocCommentToTerm(termEntry, bufferedComment)
                     body.add(boundTerm)
                     bufferedComment = null
                 }
+
                 isIdentifierStart(peek()) -> {
                     val messageEntry = parseMessage()
                     if (messageEntry is Entry.Message) {
@@ -104,6 +106,7 @@ class FluentParser {
                     }
                     bufferedComment = null
                 }
+
                 else -> {
                     // Junk
                     if (bufferedComment != null) {
@@ -119,33 +122,33 @@ class FluentParser {
                 }
             }
         }
-        
+
         // Flush any remaining buffered comment
         if (bufferedComment != null) {
             body.add(bufferedComment)
         }
-        
+
         return Resource(body)
     }
-    
+
     private fun parseComment(): Entry {
         // Count leading hashes without consuming them
         val hashCount = countHashesAt(pos)
-        
+
         if (hashCount == 3) {
             // Resource comment (###) - advance past ###, skip one space, read line
             pos += 3
-            if (peek() == ' ') pos++  // skip single space after ###
+            if (peek() == ' ') pos++ // skip single space after ###
             return Entry.ResourceComment(parseSingleCommentLine())
         }
-        
+
         // For # and ##, advance past the hashes
         if (hashCount > 0) {
             pos += hashCount
         }
-        
+
         val lines = mutableListOf<String>()
-        
+
         // Read first line of comment
         while (pos < source.length && (source[pos] == ' ' || source[pos] == '\t')) {
             pos++
@@ -153,7 +156,7 @@ class FluentParser {
         if (pos < source.length && source[pos] != '\n' && source[pos] != '\r') {
             lines.add(parseCommentLine())
         }
-        
+
         // Now check for subsequent lines
         // We need to check if the next line is a blank line (end of comment block)
         // or if it's a continuation (same number of hashes)
@@ -162,38 +165,38 @@ class FluentParser {
             while (pos < source.length && (source[pos] == '\n' || source[pos] == '\r')) {
                 pos++
             }
-            
+
             if (pos >= source.length) break
-            
+
             // Check for blank line (two or more consecutive newlines)
             // After skipping initial newlines, check if we're at another newline
             if (source[pos] == '\n' || source[pos] == '\r') {
-                break  // blank line found
+                break // blank line found
             }
-            
+
             // Check if this is a continuation - must have same number of hashes
             val lineHashCount = countHashesAt(pos)
             if (lineHashCount != hashCount) {
-                break  // not a continuation
+                break // not a continuation
             }
-            
+
             // It's a continuation - skip past the hashes and whitespace
             pos += hashCount
             while (pos < source.length && (source[pos] == ' ' || source[pos] == '\t')) {
                 pos++
             }
-            
+
             // Read the line content (may be empty)
             lines.add(parseCommentLine())
         }
-        
+
         val content = lines.joinToString("\n")
         return when (hashCount) {
             2 -> Entry.GroupComment(content)
             else -> Entry.Comment(content)
         }
     }
-    
+
     private fun countLeadingHashes(): Int {
         var count = 0
         while (pos < source.length && source[pos] == '#') {
@@ -212,7 +215,7 @@ class FluentParser {
         }
         return if (count >= 3) 3 else count
     }
-    
+
     private fun countHashesAt(pos: Int): Int {
         var count = 0
         var i = pos
@@ -222,7 +225,7 @@ class FluentParser {
         }
         return count
     }
-    
+
     private fun parseCommentLine(): String {
         val start = pos
         skipToNewline()
@@ -233,35 +236,39 @@ class FluentParser {
         skipToNewline()
         return source.substring(start, pos).trim()
     }
-    
+
     private fun bindDocCommentToMessage(message: Entry.Message, comment: Entry?): Entry.Message {
         when (comment) {
             is Entry.Comment -> {
                 val docComment = parseDocComment(comment.content)
                 return message.copy(docComment = docComment)
             }
+
             is Entry.GroupComment -> {
                 val docComment = parseDocComment(comment.content)
                 return message.copy(docComment = docComment)
             }
+
             else -> return message
         }
     }
-    
+
     private fun bindDocCommentToTerm(term: Entry.Term, comment: Entry?): Entry.Term {
         when (comment) {
             is Entry.Comment -> {
                 val docComment = parseDocComment(comment.content)
                 return term.copy(docComment = docComment)
             }
+
             is Entry.GroupComment -> {
                 val docComment = parseDocComment(comment.content)
                 return term.copy(docComment = docComment)
             }
+
             else -> return term
         }
     }
-    
+
     private fun parseDocComment(content: String): DocComment {
         val lines = content.lines()
         val variablesStart = lines.indexOfFirst { it.trim() == "Variables:" }
@@ -272,7 +279,7 @@ class FluentParser {
         val variables = parseVariableDocs(lines.subList(variablesStart + 1, lines.size))
         return DocComment(description = description, variables = variables)
     }
-    
+
     private fun parseVariableDocs(lines: List<String>): List<VariableDoc> {
         val variables = mutableListOf<VariableDoc>()
         var current: VariableDoc? = null
@@ -290,11 +297,11 @@ class FluentParser {
         if (current != null) variables.add(current)
         return variables
     }
-    
+
     private fun parseSingleVariableDoc(line: String): VariableDoc {
         // Remove leading $
         val text = line.removePrefix("$").trim()
-        
+
         // Try: $name {type, "default"} - desc
         val braceMatch = Regex("""^(\w[\w-]*)\s*\{([^}]+)\}\s*[-:]\s*(.+)$""").matchEntire(text)
         if (braceMatch != null) {
@@ -303,44 +310,50 @@ class FluentParser {
             val default = typeSpec.substringAfter(",").trim().removeSurrounding("\"")
             return VariableDoc(name, type, desc.trim(), default)
         }
-        
+
         // Try: $name (Type): desc  OR  $name (Type) - desc
         val parenMatch = Regex("""^(\w[\w-]*)\s*\((\w+)\)\s*[:\-–]\s*(.+)$""").matchEntire(text)
         if (parenMatch != null) {
             val (name, type, desc) = parenMatch.destructured
             return VariableDoc(name, type, desc.trim())
         }
-        
+
         // Try: $name : desc  OR  $name - desc  (no type)
         val noTypeMatch = Regex("""^(\w[\w-]*)\s*[:\-–]\s*(.+)$""").matchEntire(text)
         if (noTypeMatch != null) {
             val (name, desc) = noTypeMatch.destructured
             return VariableDoc(name, "", desc.trim())
         }
-        
+
         // Fallback: treat whole line as name
         return VariableDoc(text, "")
     }
-    
+
     private fun parseMessage(): Entry {
         val start = pos
         val id = parseIdentifier()
-        
+
         skipWhitespace()
-        
+
         if (peek() != '=') {
-            errors.add(ParserError.Error(ErrorKind.ExpectedToken('='), "Expected '=' after message identifier", Span(start, pos, source)))
+            errors.add(
+                ParserError.Error(
+                    ErrorKind.ExpectedToken('='),
+                    "Expected '=' after message identifier",
+                    Span(start, pos, source),
+                ),
+            )
             return Entry.Junk(source.substring(start, minOf(pos + 10, source.length)))
         }
         pos++ // skip =
-        
+
         skipWhitespace()
-        
+
         // Parse as pattern - Fluent allows inline patterns without outer braces
         // as long as they contain placeables or are explicitly marked
         // For now, parse all values as patterns to handle placeables correctly
         val value = parsePattern()
-        
+
         /*
         val value = if (peek() == '{') {
             parsePattern()
@@ -357,8 +370,8 @@ class FluentParser {
                 null
             }
         }
-        */
-        
+         */
+
         val attributes = mutableListOf<Attribute>()
         while (true) {
             skipWhitespace()
@@ -368,7 +381,13 @@ class FluentParser {
             val attrId = parseIdentifier()
             skipWhitespace()
             if (peek() != '=') {
-                errors.add(ParserError.Error(ErrorKind.MissingField, "Expected '=' after attribute identifier", Span(pos, pos, source)))
+                errors.add(
+                    ParserError.Error(
+                        ErrorKind.MissingField,
+                        "Expected '=' after attribute identifier",
+                        Span(pos, pos, source),
+                    ),
+                )
                 break
             }
             pos++ // skip =
@@ -376,30 +395,36 @@ class FluentParser {
             val attrValue = parsePattern()
             attributes.add(Attribute(Identifier(attrId), attrValue))
         }
-        
+
         val comment = parseInlineComment()
-        
+
         return Entry.Message(Identifier(id), value, attributes, comment)
     }
-    
+
     private fun parseTerm(): Entry.Term {
         val start = pos
         pos++ // skip -
-        
+
         val id = parseIdentifier()
-        
+
         skipWhitespace()
-        
+
         if (peek() != '=') {
-            errors.add(ParserError.Error(ErrorKind.MissingField, "Expected '=' after term identifier", Span(start, pos, source)))
+            errors.add(
+                ParserError.Error(
+                    ErrorKind.MissingField,
+                    "Expected '=' after term identifier",
+                    Span(start, pos, source),
+                ),
+            )
             return Entry.Term(Identifier(id), Pattern(listOf(PatternElement.TextElement(""))), emptyList(), null)
         }
         pos++ // skip =
-        
+
         skipWhitespace()
-        
+
         val value = parsePattern()
-        
+
         val attributes = mutableListOf<Attribute>()
         while (true) {
             skipWhitespace()
@@ -414,62 +439,63 @@ class FluentParser {
             val attrValue = parsePattern()
             attributes.add(Attribute(Identifier(attrId), attrValue))
         }
-        
+
         val comment = parseInlineComment()
-        
+
         return Entry.Term(Identifier(id), value, attributes, comment)
     }
-    
-        private fun parsePattern(): Pattern {
-            val elements = mutableListOf<PatternElement>()
-            
-            // Track if we're at the start of a line (no elements yet parsed)
-            var atStartOfContent = elements.isEmpty()
-            
-            while (pos < source.length && peek() != '\n') {
-                // If we're at the start of content and see '.', this is an attribute marker - stop
-                if (atStartOfContent && peek() == '.') {
-                    break
-                }
-                
-                when {
-                    peek() == '{' -> {
-                        pos++ // skip {
-                        skipWhitespace()
-                        if (peek() == '}') {
-                            pos++ // skip }
-                            continue
-                        }
-                        val expr = parseExpression()
-                        skipWhitespace()
-                        if (peek() == '}') {
-                            pos++ // skip }
-                        }
-                        elements.add(PatternElement.Placeable(expr))
-                        atStartOfContent = false
+
+    private fun parsePattern(): Pattern {
+        val elements = mutableListOf<PatternElement>()
+
+        // Track if we're at the start of a line (no elements yet parsed)
+        var atStartOfContent = elements.isEmpty()
+
+        while (pos < source.length && peek() != '\n') {
+            // If we're at the start of content and see '.', this is an attribute marker - stop
+            if (atStartOfContent && peek() == '.') {
+                break
+            }
+
+            when {
+                peek() == '{' -> {
+                    pos++ // skip {
+                    skipWhitespace()
+                    if (peek() == '}') {
+                        pos++ // skip }
+                        continue
                     }
-                    else -> {
-                        val textStart = pos
-                        while (pos < source.length && peek() != '{' && peek() != '\n') {
-                            pos++
-                        }
-                        val text = source.substring(textStart, pos)
-                        if (text.isNotEmpty()) {
-                            elements.add(PatternElement.TextElement(text))
-                            atStartOfContent = false
-                        }
+                    val expr = parseExpression()
+                    skipWhitespace()
+                    if (peek() == '}') {
+                        pos++ // skip }
+                    }
+                    elements.add(PatternElement.Placeable(expr))
+                    atStartOfContent = false
+                }
+
+                else -> {
+                    val textStart = pos
+                    while (pos < source.length && peek() != '{' && peek() != '\n') {
+                        pos++
+                    }
+                    val text = source.substring(textStart, pos)
+                    if (text.isNotEmpty()) {
+                        elements.add(PatternElement.TextElement(text))
+                        atStartOfContent = false
                     }
                 }
             }
-            
-            // Dedent multiline values
-            val dedented = dedentPattern(elements)
-            return Pattern(dedented)
         }
-    
+
+        // Dedent multiline values
+        val dedented = dedentPattern(elements)
+        return Pattern(dedented)
+    }
+
     private fun dedentPattern(elements: List<PatternElement>): List<PatternElement> {
         if (elements.isEmpty()) return elements
-        
+
         // Find common leading whitespace
         var minIndent = Int.MAX_VALUE
         for (element in elements) {
@@ -484,22 +510,27 @@ class FluentParser {
                 }
             }
         }
-        
+
         if (minIndent == Int.MAX_VALUE || minIndent == 0) return elements
-        
+
         // Remove common indent
         return elements.map { element ->
             if (element is PatternElement.TextElement) {
                 val lines = element.value.split('\n')
                 val dedented = lines.mapIndexed { i, line ->
-                    if (i == 0 || line.isEmpty()) line
-                    else line.drop(minIndent)
+                    if (i == 0 || line.isEmpty()) {
+                        line
+                    } else {
+                        line.drop(minIndent)
+                    }
                 }.joinToString("\n")
                 PatternElement.TextElement(dedented)
-            } else element
+            } else {
+                element
+            }
         }
     }
-    
+
     private fun parseExpression(): Expression {
         // Check for select expression
         skipWhitespace()
@@ -509,15 +540,15 @@ class FluentParser {
             // Use a literal selector for standalone select
             return Expression.Select(InlineExpression.StringLiteral(""), variants)
         }
-        
+
         // Check if we have a select (selector followed by variants)
         skipWhitespace()
-        
+
         // Inline expression
         val inlineExpr = parseInlineExpression()
-        
+
         skipWhitespace()
-        
+
         // Check for select expression variants: [key], *default, or -> syntax
         // Note: -> is checked here AND in parseVariants for standalone select
         skipWhitespace()
@@ -526,58 +557,60 @@ class FluentParser {
             val variants = parseVariants()
             return Expression.Select(inlineExpr, variants)
         }
-        
+
         return Expression.Inline(inlineExpr)
     }
-    
+
     private fun parseVariants(): List<Variant> {
         val variants = mutableListOf<Variant>()
-        
+
         // Handle -> syntax: -> [key] value or -> *default value
         if (peek() == '-' && peekNext() == '>') {
-            pos += 2  // skip ->
+            pos += 2 // skip ->
             skipWhitespace()
         }
-        
+
         while (peek() == '[' || peek() == '*') {
             val default = (peek() == '*')
             if (peek() == '*') pos++
-            
+
             // Skip [
             if (peek() == '[') pos++
-            
+
             skipWhitespace()
             val key = parseVariantKey()
-            
+
             skipWhitespace()
-            
+
             // Skip ]
             if (peek() == ']') pos++
-            
+
             skipWhitespace()
             val value = parsePattern()
-            
+
             variants.add(Variant(key, value, default))
-            
+
             // Skip whitespace and newlines between variants
             skipWhitespace()
         }
-        
+
         // Check for default variant - if none found, report error
         if (variants.isNotEmpty() && variants.none { it.default }) {
-            errors.add(ParserError.Error(
-                ErrorKind.MissingDefaultVariant,
-                "The select expression must have a default variant",
-                Span(0, 0, source)
-            ))
+            errors.add(
+                ParserError.Error(
+                    ErrorKind.MissingDefaultVariant,
+                    "The select expression must have a default variant",
+                    Span(0, 0, source),
+                ),
+            )
         }
-        
+
         return variants
     }
-    
+
     private fun parseVariantKey(): VariantKey {
         val start = pos
-        
+
         when {
             peek() == '"' -> {
                 pos++ // skip opening "
@@ -594,6 +627,7 @@ class FluentParser {
                 if (peek() == '"') pos++ // skip closing "
                 return VariantKey.NumberLiteral(value)
             }
+
             peek() == '-' -> {
                 // Negative number
                 pos++
@@ -603,6 +637,7 @@ class FluentParser {
                 }
                 return VariantKey.NumberLiteral("-" + source.substring(numStart, pos))
             }
+
             peek().isDigit() -> {
                 val numStart = pos
                 while (pos < source.length && (peek().isDigit() || peek() == '.')) {
@@ -610,75 +645,85 @@ class FluentParser {
                 }
                 return VariantKey.NumberLiteral(source.substring(numStart, pos))
             }
+
             else -> {
                 val name = parseIdentifier()
                 return VariantKey.Identifier(name)
             }
         }
     }
-    
-    private fun parseInlineExpression(): InlineExpression {
-        return when {
-            peek() == '$' -> parseVariableReference()
-            peek() == '-' -> parseTermOrFunctionReference()
-            peek() == '"' -> parseStringLiteral()
-            peek().isDigit() || peek() == '-' -> parseNumberLiteral()
-            isIdentifierStart(peek()) -> parseMessageOrFunctionReference()
-            peek() == '(' -> {
-                pos++ // skip (
-                val expr = parseExpression()
-                skipWhitespace()
-                if (peek() == ')') pos++
-                InlineExpression.Placeable(expr)
-            }
-            peek() == '{' -> {
-                // Nested placeable - { expr }
-                pos++ // skip {
-                skipWhitespace()
-                val expr = parseExpression()
-                skipWhitespace()
-                if (peek() == '}') pos++
-                InlineExpression.Placeable(expr)
-            }
-            else -> {
-                val start = pos
-                skipToNewline()
-                InlineExpression.StringLiteral(source.substring(start, pos))
-            }
+
+    private fun parseInlineExpression(): InlineExpression = when {
+        peek() == '$' -> parseVariableReference()
+
+        peek() == '-' -> parseTermOrFunctionReference()
+
+        peek() == '"' -> parseStringLiteral()
+
+        peek().isDigit() || peek() == '-' -> parseNumberLiteral()
+
+        isIdentifierStart(peek()) -> parseMessageOrFunctionReference()
+
+        peek() == '(' -> {
+            pos++ // skip (
+            val expr = parseExpression()
+            skipWhitespace()
+            if (peek() == ')') pos++
+            InlineExpression.Placeable(expr)
+        }
+
+        peek() == '{' -> {
+            // Nested placeable - { expr }
+            pos++ // skip {
+            skipWhitespace()
+            val expr = parseExpression()
+            skipWhitespace()
+            if (peek() == '}') pos++
+            InlineExpression.Placeable(expr)
+        }
+
+        else -> {
+            val start = pos
+            skipToNewline()
+            InlineExpression.StringLiteral(source.substring(start, pos))
         }
     }
-    
+
     private fun parseVariableReference(): InlineExpression.VariableReference {
         pos++ // skip $
         val id = parseIdentifier()
         return InlineExpression.VariableReference(Identifier(id))
     }
-    
+
     private fun parseTermOrFunctionReference(): InlineExpression {
         val start = pos
         pos++ // skip -
-        
+
         if (!isIdentifierStart(peek())) {
             // Just a minus sign
             return InlineExpression.StringLiteral("-")
         }
-        
+
         val name = parseIdentifier()
-        
+
         // Check for attribute access
         skipWhitespace()
         val attribute = if (peek() == '.') {
             pos++ // skip .
             skipWhitespace()
             Identifier(parseIdentifier())
-        } else null
-        
+        } else {
+            null
+        }
+
         // Check for function arguments
         skipWhitespace()
         val arguments = if (peek() == '(') {
             parseCallArguments()
-        } else null
-        
+        } else {
+            null
+        }
+
         return if (arguments != null) {
             // Has arguments - could be term call or function call
             // If it started with -, it's a term call; otherwise it's a function call
@@ -691,24 +736,28 @@ class FluentParser {
             InlineExpression.TermReference(Identifier(name), null, null)
         }
     }
-    
+
     private fun parseMessageOrFunctionReference(): InlineExpression {
         val name = parseIdentifier()
-        
+
         // Check for attribute access
         skipWhitespace()
         val attribute = if (peek() == '.') {
             pos++ // skip .
             skipWhitespace()
             Identifier(parseIdentifier())
-        } else null
-        
+        } else {
+            null
+        }
+
         // Check for function arguments
         skipWhitespace()
         val arguments = if (peek() == '(') {
             parseCallArguments()
-        } else null
-        
+        } else {
+            null
+        }
+
         return if (arguments != null) {
             InlineExpression.FunctionReference(Identifier(name), arguments)
         } else if (attribute != null) {
@@ -717,7 +766,7 @@ class FluentParser {
             InlineExpression.MessageReference(Identifier(name), null)
         }
     }
-    
+
     private fun parseStringLiteral(): InlineExpression.StringLiteral {
         pos++ // skip opening "
         val start = pos
@@ -729,11 +778,13 @@ class FluentParser {
                     val ch = peek()
                     // Check for valid escape sequences
                     if (ch !in "u n r t \\ \" { } $") {
-                        errors.add(ParserError.Error(
-                            ErrorKind.UnknownEscapeSequence,
-                            "Unknown escape sequence: \\$ch",
-                            Span(start, pos, source)
-                        ))
+                        errors.add(
+                            ParserError.Error(
+                                ErrorKind.UnknownEscapeSequence,
+                                "Unknown escape sequence: \\$ch",
+                                Span(start, pos, source),
+                            ),
+                        )
                     }
                     pos++ // skip escaped char
                 }
@@ -747,35 +798,39 @@ class FluentParser {
         val value = source.substring(start, pos)
         if (!unterminated && peek() == '"') pos++ // skip closing "
         if (unterminated) {
-            errors.add(ParserError.Error(
-                ErrorKind.UnterminatedStringLiteral,
-                "Unterminated string literal",
-                Span(start, pos, source)
-            ))
+            errors.add(
+                ParserError.Error(
+                    ErrorKind.UnterminatedStringLiteral,
+                    "Unterminated string literal",
+                    Span(start, pos, source),
+                ),
+            )
         }
         return InlineExpression.StringLiteral(value)
     }
-    
+
     private fun parseNumberLiteral(): InlineExpression.NumberLiteral {
         val start = pos
         if (peek() == '-') pos++
-        while (pos < source.length && (peek().isDigit() || peek() == '.' || peek() == 'e' || peek() == 'E' || peek() == '+' || peek() == '-')) {
+        while (pos < source.length &&
+            (peek().isDigit() || peek() == '.' || peek() == 'e' || peek() == 'E' || peek() == '+' || peek() == '-')
+        ) {
             pos++
         }
         return InlineExpression.NumberLiteral(source.substring(start, pos))
     }
-    
+
     private fun parseCallArguments(): CallArguments {
         pos++ // skip (
-        
+
         val positional = mutableListOf<InlineExpression>()
         val named = mutableListOf<NamedArgument>()
         var seenNamed = false
-        
+
         while (peek() != ')' && pos < source.length) {
             skipWhitespace()
             if (peek() == ')') break
-            
+
             if (isIdentifierStart(peek())) {
                 val name = parseIdentifier()
                 skipWhitespace()
@@ -789,11 +844,13 @@ class FluentParser {
                 } else {
                     // Positional argument - check if named args came before
                     if (seenNamed) {
-                        errors.add(ParserError.Error(
-                            ErrorKind.PositionalArgumentFollowsNamed,
-                            "Positional arguments must come before named arguments",
-                            Span(pos - name.length, pos, source)
-                        ))
+                        errors.add(
+                            ParserError.Error(
+                                ErrorKind.PositionalArgumentFollowsNamed,
+                                "Positional arguments must come before named arguments",
+                                Span(pos - name.length, pos, source),
+                            ),
+                        )
                     }
                     // Positional argument - need to check if it's a function call
                     skipWhitespace()
@@ -803,6 +860,7 @@ class FluentParser {
                             val args = parseCallArguments()
                             positional.add(InlineExpression.FunctionReference(Identifier(name), args))
                         }
+
                         '.' -> {
                             // Attribute access
                             pos++ // skip .
@@ -810,6 +868,7 @@ class FluentParser {
                             val attr = Identifier(parseIdentifier())
                             positional.add(InlineExpression.MessageReference(Identifier(name), attr))
                         }
+
                         else -> {
                             // Plain message reference
                             positional.add(InlineExpression.MessageReference(Identifier(name), null))
@@ -820,18 +879,18 @@ class FluentParser {
                 val value = parseInlineExpression()
                 positional.add(value)
             }
-            
+
             skipWhitespace()
             if (peek() == ',') {
                 pos++
             }
         }
-        
+
         if (peek() == ')') pos++ // skip )
-        
+
         return CallArguments(positional, named)
     }
-    
+
     private fun parseIdentifier(): String {
         val start = pos
         while (pos < source.length && isIdentifierPart(peek())) {
@@ -839,7 +898,7 @@ class FluentParser {
         }
         return source.substring(start, pos)
     }
-    
+
     private fun parseInlineComment(): Entry.Comment? {
         skipWhitespace()
         if (peek() != '#') return null
@@ -847,29 +906,32 @@ class FluentParser {
         val line = parseCommentLine()
         return Entry.Comment(line)
     }
-    
+
     private fun skipWhitespace() {
-        while (pos < source.length && (source[pos] == ' ' || source[pos] == '\t' || source[pos] == '\n' || source[pos] == '\r')) {
+        while (pos < source.length &&
+            (source[pos] == ' ' || source[pos] == '\t' || source[pos] == '\n' || source[pos] == '\r')
+        ) {
             pos++
         }
     }
-    
+
     private fun skipToNewline() {
         while (pos < source.length && source[pos] != '\n') {
             pos++
         }
     }
-    
+
     private fun peek(): Char = source.getOrNull(pos) ?: '\u0000'
-    
+
     private fun peekNext(): Char = source.getOrNull(pos + 1) ?: '\u0000'
     private fun isIdentifierStart(c: Char): Boolean = c in 'a'..'z' || c in 'A'..'Z' || c == '_'
-    
-    private fun isIdentifierPart(c: Char): Boolean = c in 'a'..'z' || c in 'A'..'Z' || c in '0'..'9' || c == '_' || c == '-'
-    
+
+    private fun isIdentifierPart(c: Char): Boolean =
+        c in 'a'..'z' || c in 'A'..'Z' || c in '0'..'9' || c == '_' || c == '-'
+
     fun parseRuntime(source: String): Resource {
         val resource = parse(source)
-        val filteredBody = resource.body.filter { 
+        val filteredBody = resource.body.filter {
             when (it) {
                 is Entry.Comment -> false
                 is Entry.GroupComment -> false
@@ -892,42 +954,42 @@ sealed class ErrorKind {
     data object InvalidIdentifier : ErrorKind()
     data object InvalidToken : ErrorKind()
     data object UnexpectedToken : ErrorKind()
-    
+
     // Token errors
     data class ExpectedToken(val token: Char) : ErrorKind()
     data class ExpectedCharRange(val range: String) : ErrorKind()
-    
+
     // Field errors
     data class ExpectedMessageField(val entryId: String) : ErrorKind()
     data class ExpectedTermField(val entryId: String) : ErrorKind()
-    
+
     // Select expression errors
     data object ForbiddenCallee : ErrorKind()
     data object MissingDefaultVariant : ErrorKind()
     data object MissingValue : ErrorKind()
     data object MultipleDefaultVariants : ErrorKind()
-    
+
     // Selector errors
     data object MessageReferenceAsSelector : ErrorKind()
     data object TermReferenceAsSelector : ErrorKind()
     data object MessageAttributeAsSelector : ErrorKind()
     data object TermAttributeAsPlaceable : ErrorKind()
-    
+
     // String literal errors
     data object UnterminatedStringLiteral : ErrorKind()
     data object UnknownEscapeSequence : ErrorKind()
     data class InvalidUnicodeEscapeSequence(val sequence: String) : ErrorKind()
-    
+
     // Argument errors
     data object PositionalArgumentFollowsNamed : ErrorKind()
     data class DuplicatedNamedArgument(val name: String) : ErrorKind()
-    
+
     // Expression errors
     data object UnbalancedClosingBrace : ErrorKind()
     data object ExpectedInlineExpression : ErrorKind()
     data object ExpectedSimpleExpressionAsSelector : ErrorKind()
     data object ExpectedLiteral : ErrorKind()
-    
+
     // Display name for error messages
     override fun toString(): String = when (this) {
         is MissingField -> "Missing field"
@@ -969,7 +1031,7 @@ data class Span(val start: Int, val end: Int, val sourceText: String) {
         }
         return line
     }
-    
+
     /**
      * Get column number (1-indexed) for start position.
      */
@@ -984,7 +1046,7 @@ data class Span(val start: Int, val end: Int, val sourceText: String) {
         }
         return col
     }
-    
+
     /**
      * Get a user-friendly display string.
      */

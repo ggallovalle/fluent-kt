@@ -8,12 +8,12 @@ sealed class FluentError {
      * Attempted to override an entry.
      */
     data class Overriding(val kind: EntryKind, val id: String) : FluentError()
-    
+
     /**
      * Parser errors.
      */
     data class ParserError(val errors: List<Any>) : FluentError()
-    
+
     /**
      * Resolver errors.
      */
@@ -26,5 +26,5 @@ sealed class FluentError {
 enum class EntryKind {
     MESSAGE,
     TERM,
-    FUNCTION
+    FUNCTION,
 }

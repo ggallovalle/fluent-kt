@@ -6,14 +6,12 @@ package dev.kbroom.fluent.fallback
 enum class ResourceType {
     /** Resource is required - throws if not found */
     Required,
+
     /** Resource is optional - silently falls back */
-    Optional
+    Optional,
 }
 
 /**
  * Identifies a resource with its type.
  */
-data class ResourceId(
-    val id: String,
-    val type: ResourceType = ResourceType.Required
-)
+data class ResourceId(val id: String, val type: ResourceType = ResourceType.Required)

@@ -1,20 +1,19 @@
 package dev.kbroom.fluent.bundle
 
-import dev.kbroom.fluent.intl.LanguageIdentifier
 import dev.kbroom.fluent.intl.IntlLangMemoizer
+import dev.kbroom.fluent.intl.LanguageIdentifier
 import dev.kbroom.fluent.intl.toJvmLocale
-import java.text.NumberFormat as JNumberFormat
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
-import java.util.Locale
+import java.text.NumberFormat as JNumberFormat
 
 /**
  * JVM implementation of PlatformIntl.
  */
 actual object PlatformIntl {
-    
+
     actual fun formatNumber(
         value: Double,
         locale: LanguageIdentifier,
@@ -24,23 +23,23 @@ actual object PlatformIntl {
         currencyDisplay: String?,
         minimumFractionDigits: Int?,
         maximumFractionDigits: Int?,
-        useGrouping: Boolean?
+        useGrouping: Boolean?,
     ): String? {
         val jLocale = locale.toJvmLocale()
-        
+
         val jFormat = when (style) {
             "percent" -> JNumberFormat.getPercentInstance(jLocale)
             "currency" -> JNumberFormat.getCurrencyInstance(jLocale)
             else -> JNumberFormat.getNumberInstance(jLocale)
         }
-        
+
         minimumFractionDigits?.let { jFormat.minimumFractionDigits = it }
         maximumFractionDigits?.let { jFormat.maximumFractionDigits = it }
         useGrouping?.let { jFormat.isGroupingUsed = it }
-        
+
         return jFormat.format(value)
     }
-    
+
     actual fun formatDateTime(
         value: Long,
         locale: LanguageIdentifier,
@@ -48,25 +47,28 @@ actual object PlatformIntl {
         dateStyle: String?,
         timeStyle: String?,
         hour12: Boolean?,
-        timeZone: String?
+        timeZone: String?,
     ): String? {
         val jLocale = locale.toJvmLocale()
         val instant = Instant.ofEpochMilli(value).atZone(ZoneId.systemDefault())
-        
+
         val dStyle = dateStyle?.let { parseFormatStyle(it) }
         val tStyle = timeStyle?.let { parseFormatStyle(it) }
-        
+
         val formatter = when {
-            dStyle != null && tStyle != null -> 
+            dStyle != null && tStyle != null ->
                 DateTimeFormatter.ofLocalizedDateTime(dStyle, tStyle).withLocale(jLocale)
+
             dStyle != null -> DateTimeFormatter.ofLocalizedDate(dStyle).withLocale(jLocale)
+
             tStyle != null -> DateTimeFormatter.ofLocalizedTime(tStyle).withLocale(jLocale)
+
             else -> DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.MEDIUM).withLocale(jLocale)
         }
-        
+
         return instant.format(formatter)
     }
-    
+
     private fun parseFormatStyle(style: String): FormatStyle = when (style.lowercase()) {
         "full" -> FormatStyle.FULL
         "long" -> FormatStyle.LONG
@@ -74,34 +76,46 @@ actual object PlatformIntl {
         "short" -> FormatStyle.SHORT
         else -> FormatStyle.MEDIUM
     }
-    
+
     actual fun formatDate(
         value: Long,
         locale: LanguageIdentifier,
         memoizer: IntlLangMemoizer,
         style: String,
-        timeZone: String?
-    ): String? {
-        return formatDateTime(value, locale, memoizer, dateStyle = style, timeStyle = null, hour12 = null, timeZone = timeZone)
-    }
-    
+        timeZone: String?,
+    ): String? = formatDateTime(
+        value,
+        locale,
+        memoizer,
+        dateStyle = style,
+        timeStyle = null,
+        hour12 = null,
+        timeZone = timeZone,
+    )
+
     actual fun formatTime(
         value: Long,
         locale: LanguageIdentifier,
         memoizer: IntlLangMemoizer,
         style: String,
         hour12: Boolean?,
-        timeZone: String?
-    ): String? {
-        return formatDateTime(value, locale, memoizer, dateStyle = null, timeStyle = style, hour12 = hour12, timeZone = timeZone)
-    }
-    
+        timeZone: String?,
+    ): String? = formatDateTime(
+        value,
+        locale,
+        memoizer,
+        dateStyle = null,
+        timeStyle = style,
+        hour12 = hour12,
+        timeZone = timeZone,
+    )
+
     actual fun formatList(
         values: List<String>,
         locale: LanguageIdentifier,
         memoizer: IntlLangMemoizer,
         type: String,
-        style: String
+        style: String,
     ): String? {
         if (values.isEmpty()) return ""
         if (values.size == 1) return values[0]
@@ -109,26 +123,24 @@ actual object PlatformIntl {
             val conjunction = if (type == "disjunction") " or " else " and "
             return values.joinToString(conjunction)
         }
-        
+
         val separator = ", "
         val finalSeparator = when (type) {
             "disjunction" -> ", or "
             else -> ", and "
         }
-        
+
         return values.dropLast(1).joinToString(separator) + finalSeparator + values.last()
     }
-    
-    actual fun getPluralCategory(
-        value: Double,
-        locale: LanguageIdentifier,
-        memoizer: IntlLangMemoizer
-    ): String {
+
+    actual fun getPluralCategory(value: Double, locale: LanguageIdentifier, memoizer: IntlLangMemoizer): String {
         // Simple plural category implementation
         val lang = locale.language
         return when (lang) {
             "en" -> if (value == 1.0) "one" else "other"
+
             "fr", "de", "es", "it", "pt" -> if (value == 1.0) "one" else "other"
+
             "ru", "pl", "uk" -> {
                 val n = value.toLong()
                 val mod10 = (n % 10).toInt()
@@ -140,6 +152,7 @@ actual object PlatformIntl {
                     else -> "other"
                 }
             }
+
             "ar" -> {
                 val n = value.toLong()
                 when (n) {
@@ -151,6 +164,7 @@ actual object PlatformIntl {
                     else -> "other"
                 }
             }
+
             else -> if (value == 1.0) "one" else "other"
         }
     }
