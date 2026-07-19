@@ -20,6 +20,7 @@ kotlin {
             implementation(project(":fluent-testing"))
             implementation("com.charleskorn.kaml:kaml:0.70.0")
             implementation("de.infix.testBalloon:testBalloon-framework-core:1.0.1-K2.4.0")
+            implementation("io.kotest:kotest-property:5.9.1")
         }
         getByName("jvmTest") {
             dependencies {

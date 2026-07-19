@@ -5,7 +5,9 @@ kotlinx-datetime = "0.8.0"
 detekt = "2.0.0-alpha.5"
 detektKotlin = "2.4.0"
 detektJvmTarget = "21"
+kotest = "5.9.1"
 
 [libraries]
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
 kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinx-datetime" }
+kotest-property = { module = "io.kotest:kotest-property", version.ref = "kotest" }
