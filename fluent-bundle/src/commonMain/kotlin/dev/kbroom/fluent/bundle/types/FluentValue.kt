@@ -150,32 +150,38 @@ fun fluentValueOf(value: Any?): FluentValue = when (value) {
  */
 fun getPluralCategory(value: Double, locale: String): PluralCategory {
     val intValue = floor(value).toInt()
-
-    // CLDR plural rules for common locales
     return when {
-        locale.startsWith("en") -> when (intValue) {
-            1 -> PluralCategory.ONE
-            else -> PluralCategory.OTHER
-        }
-
-        locale.startsWith("ru") || locale.startsWith("uk") -> when {
-            intValue % 10 == 1 && intValue % 100 != 11 -> PluralCategory.ONE
-            intValue % 10 in 2..4 && intValue % 100 !in 12..14 -> PluralCategory.FEW
-            intValue % 10 == 0 || intValue % 10 in 5..9 || intValue % 100 in 11..14 -> PluralCategory.MANY
-            else -> PluralCategory.OTHER
-        }
-
-        locale.startsWith("ar") -> when (intValue) {
-            0 -> PluralCategory.ZERO
-            1 -> PluralCategory.ONE
-            2 -> PluralCategory.TWO
-            in 3..10 -> PluralCategory.FEW
-            in 11..99 -> PluralCategory.MANY
-            else -> PluralCategory.OTHER
-        }
-
-        else -> PluralCategory.OTHER
+        locale.startsWith("en") -> pluralCategoryEnglish(intValue)
+        locale.startsWith("ru") || locale.startsWith("uk") -> pluralCategorySlavic(intValue)
+        locale.startsWith("ar") -> pluralCategoryArabic(intValue)
+        else -> pluralCategoryDefault(intValue)
     }
+}
+
+private fun pluralCategoryEnglish(intValue: Int): PluralCategory = when (intValue) {
+    1 -> PluralCategory.ONE
+    else -> PluralCategory.OTHER
+}
+
+private fun pluralCategorySlavic(intValue: Int): PluralCategory = when {
+    intValue % 10 == 1 && intValue % 100 != 11 -> PluralCategory.ONE
+    intValue % 10 in 2..4 && intValue % 100 !in 12..14 -> PluralCategory.FEW
+    intValue % 10 == 0 || intValue % 10 in 5..9 || intValue % 100 in 11..14 -> PluralCategory.MANY
+    else -> PluralCategory.OTHER
+}
+
+private fun pluralCategoryArabic(intValue: Int): PluralCategory = when (intValue) {
+    0 -> PluralCategory.ZERO
+    1 -> PluralCategory.ONE
+    2 -> PluralCategory.TWO
+    in 3..10 -> PluralCategory.FEW
+    in 11..99 -> PluralCategory.MANY
+    else -> PluralCategory.OTHER
+}
+
+private fun pluralCategoryDefault(intValue: Int): PluralCategory = when (intValue) {
+    1 -> PluralCategory.ONE
+    else -> PluralCategory.OTHER
 }
 
 /**

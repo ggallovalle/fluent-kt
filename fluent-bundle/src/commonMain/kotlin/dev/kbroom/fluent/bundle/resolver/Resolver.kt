@@ -401,11 +401,9 @@ class PatternResolver {
             when (val key = variant.key) {
                 is VariantKey.Identifier -> {
                     val selectorStr = selectorValue.asString()
-                    key.name == selectorStr ||
-                        (
-                            selectorValue is FluentValue.Number &&
-                            key.name == selectorValue.value.value.toInt().toString()
-                        )
+                    val numberKey = (selectorValue as? FluentValue.Number)
+                        ?.value?.value?.toInt()?.toString()
+                    key.name == selectorStr || (numberKey != null && key.name == numberKey)
                 }
 
                 is VariantKey.NumberLiteral -> {
