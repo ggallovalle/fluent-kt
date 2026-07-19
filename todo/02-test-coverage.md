@@ -55,10 +55,18 @@ have no coverage at all.
   and `formatMessage` APIs — `formatPattern` Reference-error collection
   test passes; `formatMessage` null/missing-message contract tested.
 
-### E. Property-based tests
+### E. Property-based tests ✅
 
-- [ ] **2.11** Add property-based tests using kotest-property or similar.
-  Deferred: requires new test dependency.
+- [x] **2.11** Add property-based tests using kotest-property or similar.
+  Adds kotest-property 5.9.1 to fluent-syntax and fluent-bundle
+  commonTest. `PropertyTest` (fluent-syntax) drives the parser
+  invariant "any valid identifier round-trips" + "parsing is
+  referentially transparent" across hundreds of generated inputs.
+  `BundlePropertyTest` (fluent-bundle) drives "addResource then
+  getMessage retrieves the same message" + the inverse
+  "getMessage returns null for any id NOT added". Generators
+  constrain to inputs the current implementation accepts; broken-input
+  cases remain in ParseJunkMessagesTest.
 
 ## Verification
 

@@ -41,8 +41,11 @@ Priority-ordered list of work items to reach a publishable v1.0.0.
 
 ## Current snapshot
 
-- **Commits**: 13 (since session start)
-- **Tests**: all suites green — ResolverFixtureTest no longer skips err1/err3; ParserFixtureTest passes; StructuralAstEqualsTest covers junk.ftl no-Message invariant
+- **Commits**: 17 (since session start)
+- **Tests**: all suites green across JVM + LinuxX64 — property-based tests via
+  kotest-property exercise parser round-trip and bundle getMessage invariants;
+  structural round-trip across curated fixtures; broken-Junk fixture covers
+  err1/err3.
 - **Modules**: 8 (fluent-syntax, fluent-bundle, fluent-fallback, fluent-pseudo, fluent-resmgr, fluent-testing, fluent, intl-memoizer)
 - **Dead modules**: 4 (fluent-compiler, fluent-compiler-annotations, fluent-gradle-plugin, fluent-sample)
 - **Targets**: JVM + LinuxX64
