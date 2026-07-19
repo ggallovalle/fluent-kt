@@ -33,20 +33,10 @@ val StructuralAstEqualsTest by testSuite {
         encodeDefaults = true
     }
 
-    fun loadFixture(name: String): String =
-        loadSyntaxFixtures("fixtures").firstOrNull { it.first == name }
-            ?.second ?: error("fixture not found: $name")
+    fun loadFixture(name: String): String = loadSyntaxFixtures("fixtures")
+        .firstOrNull { it.first == name }
+        ?.second ?: error("fixture not found: $name")
 
-    /**
-     * Normalize a JSON tree for semantic comparison:
-     * - drop the synthetic `type` discriminators our data classes add (they
-     *   exist only so the wire shape includes a `type` field; the value is
-     *   always a known constant per class)
-     * - drop the `docComment` field (the parser may attach it where the
-     *   fixture doesn't)
-     * - sort object keys for deterministic comparison
-     * - leave array order intact
-     */
     fun normalize(element: JsonElement): JsonElement = when (element) {
         is JsonObject -> {
             val filtered = element.entries
@@ -56,8 +46,12 @@ val StructuralAstEqualsTest by testSuite {
                 .toMap()
             JsonObject(filtered)
         }
+
         is JsonArray -> JsonArray(element.map(::normalize))
-        is JsonPrimitive, JsonNull -> element
+
+        is JsonPrimitive -> element
+
+        is JsonNull -> element
     }
 
     fun assertStructurallyEqual(expected: JsonElement, actual: JsonElement, path: String = "$") {
@@ -65,41 +59,43 @@ val StructuralAstEqualsTest by testSuite {
             fail("$path: kind mismatch: expected ${expected::class.simpleName}, got ${actual::class.simpleName}")
         }
         when (expected) {
-            is JsonObject -> {
-                val a = actual as JsonObject
-                val expKeys = expected.keys.toSet()
-                val actKeys = a.keys.toSet()
-                if (expKeys != actKeys) {
-                    val missing = expKeys - actKeys
-                    val extra = actKeys - expKeys
-                    val detail = buildString {
-                        if (missing.isNotEmpty()) append(" missing=$missing")
-                        if (extra.isNotEmpty()) append(" extra=$extra")
-                    }
-                    fail("$path: key mismatch$detail; expected=$expected actual=$a")
-                }
-                for ((k, v) in expected) {
-                    assertStructurallyEqual(v, a.getValue(k), "$path.$k")
-                }
-            }
-
-            is JsonArray -> {
-                val a = actual as JsonArray
-                if (expected.size != a.size) {
-                    fail("$path: array length mismatch: expected ${expected.size}, got ${a.size}")
-                }
-                for ((i, v) in expected.withIndex()) {
-                    assertStructurallyEqual(v, a[i], "$path[$i]")
-                }
-            }
-
-            is JsonPrimitive, JsonNull -> {
-                if (expected != actual) {
-                    fail("$path: primitive mismatch: expected=$expected actual=$actual")
-                }
-            }
-
+            is JsonObject -> assertObjectEqual(expected, actual as JsonObject, path)
+            is JsonArray -> assertArrayEqual(expected, actual as JsonArray, path)
+            is JsonPrimitive -> assertPrimitiveEqual(expected, actual as JsonPrimitive, path)
+            is JsonNull -> { /* both are JsonNull — always equal */ }
             else -> fail("unhandled: ${expected::class.simpleName}")
+        }
+    }
+
+    private fun assertObjectEqual(expected: JsonObject, actual: JsonObject, path: String) {
+        val expKeys = expected.keys.toSet()
+        val actKeys = actual.keys.toSet()
+        if (expKeys != actKeys) {
+            val missing = expKeys - actKeys
+            val extra = actKeys - expKeys
+            val detail = buildString {
+                if (missing.isNotEmpty()) append(" missing=$missing")
+                if (extra.isNotEmpty()) append(" extra=$extra")
+            }
+            fail("$path: key mismatch$detail; expected=$expected actual=$actual")
+        }
+        for ((k, v) in expected) {
+            assertStructurallyEqual(v, actual.getValue(k), "$path.$k")
+        }
+    }
+
+    private fun assertArrayEqual(expected: JsonArray, actual: JsonArray, path: String) {
+        if (expected.size != actual.size) {
+            fail("$path: array length mismatch: expected ${expected.size}, got ${actual.size}")
+        }
+        for ((i, v) in expected.withIndex()) {
+            assertStructurallyEqual(v, actual[i], "$path[$i]")
+        }
+    }
+
+    private fun assertPrimitiveEqual(expected: JsonPrimitive, actual: JsonPrimitive, path: String) {
+        if (expected != actual) {
+            fail("$path: primitive mismatch: expected=$expected actual=$actual")
         }
     }
 
@@ -111,28 +107,24 @@ val StructuralAstEqualsTest by testSuite {
         assertStructurallyEqual(expected, actual)
     }
 
-    /**
-     * Smoke test: every fixture in fixtures/ parses without throwing and
-     * produces a structurally-valid Resource (a JsonObject with a body field).
-     */
+    // Smoke test: every fixture in fixtures/ parses without throwing and
+    // produces a structurally-valid Resource (a JsonObject with a body field).
     test("every fixture parses into a structurally valid Resource") {
         val parser = FluentParser()
         val fixtures = loadSyntaxFixtures("fixtures")
         val failures = mutableListOf<String>()
         for ((name, ftl) in fixtures) {
-            if (name.contains("normalized")) continue
-            try {
-                val ast = parser.parse(ftl)
-                val encoded = json.encodeToJsonElement(Resource.serializer(), ast)
-                if (encoded !is JsonObject) {
-                    failures.add("$name: root is not a JsonObject")
-                    continue
-                }
-                if (encoded["body"] !is JsonArray) {
-                    failures.add("$name: missing or non-array body")
-                }
-            } catch (e: Throwable) {
-                failures.add("$name: ${e.message}")
+            if (!name.contains("normalized")) {
+                val result = runCatching {
+                    val ast = parser.parse(ftl)
+                    val encoded = json.encodeToJsonElement(Resource.serializer(), ast)
+                    when {
+                        encoded !is JsonObject -> "$name: root is not a JsonObject"
+                        encoded["body"] !is JsonArray -> "$name: missing or non-array body"
+                        else -> null
+                    }
+                }.getOrElse { e -> "$name: ${e.message}" }
+                if (result != null) failures.add(result)
             }
         }
         assertTrue(failures.isEmpty(), failures.joinToString("\n"))
