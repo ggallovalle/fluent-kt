@@ -59,76 +59,61 @@ class FluentParser {
         var bufferedComment: Entry? = null
 
         while (pos < source.length) {
-            // Check for blank line BEFORE skipping whitespace
-            if (peek() == '\n' || peek() == '\r') {
-                if (bufferedComment != null) {
-                    body.add(bufferedComment)
-                    bufferedComment = null
-                }
-                pos++
+            if (consumeBlankLine()) {
+                bufferedComment?.let(body::add)
+                bufferedComment = null
                 continue
             }
-
             skipWhitespace()
-
-            // Check for blank line after whitespace
-            if (peek() == '\n' || peek() == '\r') {
-                if (bufferedComment != null) {
-                    body.add(bufferedComment)
-                    bufferedComment = null
-                }
-                pos++
+            if (isAtNewline()) {
+                bufferedComment?.let(body::add)
+                bufferedComment = null
                 continue
             }
-
             if (pos >= source.length) break
-
-            // Check for comment
-            when {
-                peek() == '#' -> {
-                    bufferedComment = parseComment()
-                }
-
-                peek() == '-' -> {
-                    val termEntry = parseTerm()
-                    val boundTerm = bindDocCommentToTerm(termEntry, bufferedComment)
-                    body.add(boundTerm)
-                    bufferedComment = null
-                }
-
-                isIdentifierStart(peek()) -> {
-                    val messageEntry = parseMessage()
-                    if (messageEntry is Entry.Message) {
-                        val boundMessage = bindDocCommentToMessage(messageEntry, bufferedComment)
-                        body.add(boundMessage)
-                    } else {
-                        body.add(messageEntry)
-                    }
-                    bufferedComment = null
-                }
-
-                else -> {
-                    // Junk
-                    if (bufferedComment != null) {
-                        body.add(bufferedComment)
-                        bufferedComment = null
-                    }
-                    val start = pos
-                    skipToNewline()
-                    val content = source.substring(start, pos).trim()
-                    if (content.isNotEmpty()) {
-                        errors.add(ParserError.Error(ErrorKind.InvalidToken, "Invalid token", Span(start, pos, source)))
-                    }
-                }
-            }
+            bufferedComment = parseTopLevelEntry(body, bufferedComment)
         }
 
-        // Flush any remaining buffered comment
-        if (bufferedComment != null) {
-            body.add(bufferedComment)
-        }
-
+        bufferedComment?.let(body::add)
         return Resource(body)
+    }
+
+    private fun consumeBlankLine(): Boolean = peek() == '\n' || peek() == '\r'
+
+    private fun isAtNewline(): Boolean = peek() == '\n' || peek() == '\r'
+
+    private fun parseTopLevelEntry(body: MutableList<Entry>, bufferedComment: Entry?): Entry? = when {
+        peek() == '#' -> parseComment()
+
+        peek() == '-' -> {
+            body.add(bindDocCommentToTerm(parseTerm(), bufferedComment))
+            null
+        }
+
+        isIdentifierStart(peek()) -> {
+            val messageEntry = parseMessage()
+            if (messageEntry is Entry.Message) {
+                body.add(bindDocCommentToMessage(messageEntry, bufferedComment))
+            } else {
+                body.add(messageEntry)
+            }
+            null
+        }
+
+        else -> {
+            bufferedComment?.let(body::add)
+            skipJunkLine()
+            bufferedComment
+        }
+    }
+
+    private fun skipJunkLine() {
+        val start = pos
+        skipToNewline()
+        val content = source.substring(start, pos).trim()
+        if (content.isNotEmpty()) {
+            errors.add(ParserError.Error(ErrorKind.InvalidToken, "Invalid token", Span(start, pos, source)))
+        }
     }
 
     private fun parseComment(): Entry {
