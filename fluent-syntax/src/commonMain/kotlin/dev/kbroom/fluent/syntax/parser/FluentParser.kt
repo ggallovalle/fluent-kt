@@ -329,12 +329,26 @@ class FluentParser {
         }
         pos++ // skip =
 
-        // Do NOT skip newlines here unless the value continues on a subsequent
-        // indented line (multi-line pattern). If the line after `=` is blank,
-        // an unindented new entry, or a line beginning with `.` (an
-        // attribute), the value is missing.
+        val value = parseMessageValue()
+        val attributes = parseMessageAttributes()
+        val comment = parseInlineComment()
+
+        if (isMessageBroken(value, attributes)) {
+            return junkFromLine(start)
+        }
+
+        return Entry.Message(Identifier(id), value, attributes, comment)
+    }
+
+    /**
+     * Parse the right-hand side of a `msg = ...` declaration. Returns `null`
+     * if the value is missing (blank line, unindented new entry, or '.'
+     * attribute follows). A multi-line pattern continuation is supported
+     * when the next non-blank line is indented.
+     */
+    private fun parseMessageValue(): Pattern? {
         skipInlineWhitespace()
-        val value = if (peek() == '\n' || peek() == '\r') {
+        if (peek() == '\n' || peek() == '\r') {
             // Possible multi-line continuation: scan past blank lines and any
             // indentation. Only treat as a continuation if the next non-blank
             // line is indented — a new entry on the next line is not a value.
@@ -346,7 +360,7 @@ class FluentParser {
             val indented = pos > startScan + 1 &&
                 (source[startScan + 1] == ' ' || source[startScan + 1] == '\t')
             val hasMore = pos < source.length
-            when {
+            return when {
                 !hasMore -> {
                     pos = startScan
                     null
@@ -367,12 +381,17 @@ class FluentParser {
 
                 else -> parsePattern()
             }
-        } else if (pos < source.length) {
-            parsePattern()
-        } else {
-            null
         }
+        return if (pos < source.length) parsePattern() else null
+    }
 
+    /**
+     * Parse attribute lines that belong to the current message. Each
+     * `.attr = ...` block produces an [Attribute]; an attribute whose value
+     * is missing or empty still occupies a slot in the list so the message
+     * can be classified as broken if needed.
+     */
+    private fun parseMessageAttributes(): List<Attribute> {
         val attributes = mutableListOf<Attribute>()
         while (true) {
             skipWhitespace()
@@ -396,23 +415,20 @@ class FluentParser {
             val attrValue = parsePattern()
             attributes.add(Attribute(Identifier(attrId), attrValue))
         }
+        return attributes
+    }
 
-        val comment = parseInlineComment()
-
-        // Upstream behavior: a message with no usable value and no usable
-        // attributes becomes a Junk entry so it does not silently corrupt the
-        // message catalog.
+    /**
+     * A message is "broken" if it has no usable value and every attribute
+     * (when any are present) also has an empty value. Broken messages become
+     * Junk entries upstream — they cannot be formatted usefully and they
+     * should not pollute the message catalog.
+     */
+    private fun isMessageBroken(value: Pattern?, attributes: List<Attribute>): Boolean {
         val valueIsEmpty = value == null || value.elements.isEmpty()
-        val attrsAllEmpty = attributes.isNotEmpty() &&
-            attributes.all { it.value.elements.isEmpty() }
-        if (valueIsEmpty && attributes.isEmpty()) {
-            return junkFromLine(start)
-        }
-        if (valueIsEmpty && attrsAllEmpty) {
-            return junkFromLine(start)
-        }
-
-        return Entry.Message(Identifier(id), value, attributes, comment)
+        if (!valueIsEmpty) return false
+        if (attributes.isEmpty()) return true
+        return attributes.all { it.value.elements.isEmpty() }
     }
 
     /**

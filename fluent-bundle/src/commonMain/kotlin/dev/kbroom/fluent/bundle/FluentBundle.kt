@@ -39,6 +39,8 @@ class FluentBundle(val locales: List<LanguageIdentifier>, val useIsolating: Bool
      * If a message or term with the same ID already exists, an error is returned.
      * Use [addResourceOverriding] if you want to replace existing entries.
      *
+     * Junk entries produced by the parser for broken FTL are silently ignored.
+     *
      * @param resource The FluentResource to add
      * @return Result.success(Unit) on success, or Result.failure with error details
      */
@@ -48,8 +50,6 @@ class FluentBundle(val locales: List<LanguageIdentifier>, val useIsolating: Bool
         for (entry in resource.body) {
             when (entry) {
                 is Entry.Message -> {
-                    // Skip broken messages: no useful value and no useful attributes
-                    if (isBrokenMessage(entry)) continue
                     val existing = entries[entry.id.name]
                     if (existing != null) {
                         errors.add(FluentError.Overriding(EntryKind.MESSAGE, entry.id.name))
@@ -65,7 +65,7 @@ class FluentBundle(val locales: List<LanguageIdentifier>, val useIsolating: Bool
                     entries[entry.id.name] = entry
                 }
 
-                else -> { /* Comments are ignored */ }
+                else -> { /* Comments and Junk are ignored */ }
             }
         }
 
@@ -79,21 +79,17 @@ class FluentBundle(val locales: List<LanguageIdentifier>, val useIsolating: Bool
     /**
      * Add a resource, overwriting any existing messages or terms with the same ID.
      *
+     * Junk entries produced by the parser for broken FTL are silently ignored.
+     *
      * @param resource The FluentResource to add
      * @return Result.success(Unit)
      */
     fun addResourceOverriding(resource: FluentResource): Result<Unit> {
         for (entry in resource.body) {
             when (entry) {
-                is Entry.Message -> {
-                    // Skip broken messages: no useful value and no useful attributes
-                    if (isBrokenMessage(entry)) continue
-                    entries[entry.id.name] = entry
-                }
-
+                is Entry.Message -> entries[entry.id.name] = entry
                 is Entry.Term -> entries[entry.id.name] = entry
-
-                else -> { /* Comments are ignored */ }
+                else -> { /* Comments and Junk are ignored */ }
             }
         }
         return Result.success(Unit)
@@ -347,19 +343,4 @@ class FluentBundle(val locales: List<LanguageIdentifier>, val useIsolating: Bool
      * Get the memoizer for caching formatted values.
      */
     fun memoizer(): IntlLangMemoizer = memoizer
-
-    @Suppress("ReturnCount")
-    private fun isBrokenMessage(entry: Entry.Message): Boolean {
-        val value = entry.value
-        val elements = value?.elements
-        val hasUsefulValue = value != null && elements != null && elements.isNotEmpty()
-        val hasAttributes = entry.attributes.isNotEmpty()
-        // No useful value and no attributes at all
-        if (!hasUsefulValue && !hasAttributes) return true
-        // No useful value but has attributes — check if ALL attribute values are empty
-        if (!hasUsefulValue && hasAttributes) {
-            return entry.attributes.all { attr -> attr.value.elements.isEmpty() }
-        }
-        return false
-    }
 }
