@@ -9,10 +9,13 @@ import kotlinx.serialization.Serializable
  * A Resource is the top-level container for all parsed Fluent content.
  * It contains a list of [Entry] elements representing messages, terms, and comments.
  *
+ * The `type` field is always `"Resource"` and is serialized to match the
+ * upstream fluent-rs fixture shape.
+ *
  * @property body The list of entries (messages, terms, comments) in this resource
  */
 @Serializable
-data class Resource(val body: List<Entry>)
+data class Resource(val body: List<Entry>, val type: String = "Resource")
 
 /**
  * Represents a single top-level element in an FTL resource.
@@ -105,10 +108,14 @@ sealed class Entry {
      * files that contain non-Fluent content.
      *
      * @property content The raw unparseable content
+     * @property annotations Parser annotations attached to the junk span
+     *                       (e.g. error kinds). Mirrors the upstream
+     *                       fluent-rs fixture shape; empty when the parser
+     *                       does not record any annotations.
      */
     @Serializable
     @SerialName("Junk")
-    data class Junk(val content: String) : Entry()
+    data class Junk(val content: String, val annotations: List<String> = emptyList()) : Entry()
 }
 
 /**
@@ -144,10 +151,13 @@ data class VariableDoc(
  *
  * Identifiers are used for message IDs, term IDs, attribute names, and variable names.
  *
+ * The `type` field is always `"Identifier"` and is serialized to match the
+ * upstream fluent-rs fixture shape (`{"type": "Identifier", "name": "..."}`).
+ *
  * @property name The identifier name string
  */
 @Serializable
-data class Identifier(val name: String)
+data class Identifier(val name: String, val type: String = "Identifier")
 
 /**
  * A pattern - the content of a message or term value.
@@ -158,7 +168,7 @@ data class Identifier(val name: String)
  * @property elements The list of pattern elements (text and placeables)
  */
 @Serializable
-data class Pattern(val elements: List<PatternElement>)
+data class Pattern(val elements: List<PatternElement>, val type: String = "Pattern")
 
 /**
  * An element within a [Pattern].
@@ -198,7 +208,7 @@ sealed class PatternElement {
  * @property value The attribute value (pattern)
  */
 @Serializable
-data class Attribute(val id: Identifier, val value: Pattern)
+data class Attribute(val id: Identifier, val value: Pattern, val type: String = "Attribute")
 
 /**
  * An expression in a pattern or placeable.
@@ -218,7 +228,7 @@ sealed class Expression {
      * @property variants The list of possible variants
      */
     @Serializable
-    @SerialName("Select")
+    @SerialName("SelectExpression")
     data class Select(val selector: InlineExpression, val variants: List<Variant>) : Expression()
 
     /**
@@ -227,7 +237,7 @@ sealed class Expression {
      * @property expression The underlying inline expression
      */
     @Serializable
-    @SerialName("Inline")
+    @SerialName("InlineExpression")
     data class Inline(val expression: InlineExpression) : Expression()
 }
 
@@ -314,7 +324,7 @@ sealed class InlineExpression {
  * @property default True if this is the default variant
  */
 @Serializable
-data class Variant(val key: VariantKey, val value: Pattern, val default: Boolean)
+data class Variant(val key: VariantKey, val value: Pattern, val default: Boolean, val type: String = "Variant")
 
 /**
  * The key for a variant in a select expression.
@@ -343,6 +353,7 @@ sealed class VariantKey {
 data class CallArguments(
     val positional: List<InlineExpression> = emptyList(),
     val named: List<NamedArgument> = emptyList(),
+    val type: String = "CallArguments",
 )
 
 /**
@@ -352,4 +363,4 @@ data class CallArguments(
  * @property value The argument value
  */
 @Serializable
-data class NamedArgument(val name: Identifier, val value: InlineExpression)
+data class NamedArgument(val name: Identifier, val value: InlineExpression, val type: String = "NamedArgument")
