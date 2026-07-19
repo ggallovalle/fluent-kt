@@ -1,7 +1,6 @@
 package dev.kbroom.fluent.resmgr
 
 import de.infix.testBalloon.framework.core.testSuite
-import dev.kbroom.fluent.bundle.FluentArgs
 import dev.kbroom.fluent.fallback.ResourceId
 import dev.kbroom.fluent.intl.LanguageIdentifier
 import kotlin.test.assertEquals
@@ -54,6 +53,7 @@ val ResourceManagerTest by testSuite {
         )
         assertNull(bundle.formatMessage("missing"))
         assertFalse(bundle.hasMessage("missing"))
+        @Suppress("IgnoredReturnValue")
         assertNotNull(bundle.getFunction("NUMBER"))
     }
 
@@ -115,8 +115,12 @@ val ResourceManagerTest by testSuite {
             resourceIds = listOf(ResourceId("browser")),
         )
         assertEquals(2, bundles.size)
-        assertEquals("Howdy", bundles[LanguageIdentifier.parse("en-US")]!!.format("hello"))
-        assertEquals("Bonjour", bundles[LanguageIdentifier.parse("fr")]!!.format("hello"))
+        val enUs = bundles[LanguageIdentifier.parse("en-US")]
+        val fr = bundles[LanguageIdentifier.parse("fr")]
+        assertNotNull(enUs)
+        assertNotNull(fr)
+        assertEquals("Howdy", enUs.format("hello"))
+        assertEquals("Bonjour", fr.format("hello"))
     }
 
     test("getBundle combines multiple resource ids in declaration order; later wins") {
@@ -135,10 +139,4 @@ val ResourceManagerTest by testSuite {
         assertEquals("Yes", bundle.format("onlyMain"))
         assertEquals("Also", bundle.format("onlyExtra"))
     }
-}
-
-private fun argsOf(vararg pairs: Pair<String, String>): FluentArgs {
-    val args = FluentArgs()
-    for ((k, v) in pairs) args.set(k, v)
-    return args
 }

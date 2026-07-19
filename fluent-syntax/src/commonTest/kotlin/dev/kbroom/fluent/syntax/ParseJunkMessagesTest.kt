@@ -56,7 +56,7 @@ val ParseJunkMessagesTest by testSuite {
         assertEquals(1, resource.body.size)
         val msg = resource.body[0]
         assertTrue(msg is Entry.Message, "expected Message, got ${msg::class.simpleName}")
-        assertEquals("err4", (msg as Entry.Message).id.name)
+        assertEquals("err4", msg.id.name)
     }
 
     test("err1+err2+err3+err4 combined: each broken entry is Junk, the valid one is a Message") {

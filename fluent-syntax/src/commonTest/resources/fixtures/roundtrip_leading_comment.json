@@ -1,0 +1,32 @@
+{
+    "type": "Resource",
+    "body": [
+        {
+            "type": "GroupComment",
+            "content": "Section"
+        },
+        {
+            "type": "Message",
+            "id": {
+                "type": "Identifier",
+                "name": "hello"
+            },
+            "value": {
+                "type": "Pattern",
+                "elements": [
+                    {
+                        "type": "TextElement",
+                        "value": "Hi"
+                    }
+                ]
+            },
+            "attributes": [],
+            "comment": null,
+            "docComment": {
+                "type": "DocComment",
+                "description": "Section",
+                "variables": []
+            }
+        }
+    ]
+}

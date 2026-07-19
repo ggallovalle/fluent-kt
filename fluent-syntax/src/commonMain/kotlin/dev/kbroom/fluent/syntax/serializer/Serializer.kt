@@ -44,7 +44,10 @@ class Serializer(private val options: SerializerOptions = SerializerOptions()) {
         val sb = StringBuilder()
         for (entry in resource.body) {
             serializeEntry(entry, sb)
-            sb.append("\n")
+            // Junk entries already end in a newline (parser preserves
+            // original line boundaries); don't add a second one.
+            val endsWithNewline = entry is Entry.Junk && entry.content.endsWith("\n")
+            if (!endsWithNewline) sb.append("\n")
         }
         return sb.toString()
     }
@@ -136,7 +139,7 @@ class Serializer(private val options: SerializerOptions = SerializerOptions()) {
     private fun serializeExpression(expr: Expression, sb: StringBuilder) {
         when (expr) {
             is Expression.Select -> {
-                sb.append("\$")
+                sb.append("$")
                 serializeInlineExpression(expr.selector, sb)
                 sb.append(" ->\n")
                 for (variant in expr.variants) {
