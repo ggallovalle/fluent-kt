@@ -1,13 +1,16 @@
 # Gradle
 .gradle/
 build/
+out/
 gradle/wrapper/*.jar
 !gradle/wrapper/gradle-wrapper.properties
+local.properties
 
 # IDE
 .idea/
 *.iml
 .vscode/
+.kotlin/
 
 # OS
 .DS_Store

@@ -1,3 +1,5 @@
+description = "Locale-aware formatter cache (numbers, dates, lists) for Kotlin Multiplatform"
+
 plugins {
     kotlin("multiplatform") version "2.4.0"
     kotlin("plugin.serialization") version "2.4.0"
@@ -11,7 +13,6 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
-            implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.8.0")
             implementation("org.jetbrains.kotlinx:atomicfu:0.32.1")
         }
         commonTest.dependencies {

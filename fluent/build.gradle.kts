@@ -1,3 +1,5 @@
+description = "Public umbrella module: re-exports fluent-bundle, fluent-pseudo, fluent-fallback entry points"
+
 plugins {
     kotlin("multiplatform") version "2.4.0"
     kotlin("plugin.serialization") version "2.4.0"
