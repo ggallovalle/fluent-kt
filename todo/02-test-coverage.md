@@ -38,7 +38,11 @@ have no coverage at all.
 
 - [x] **2.5** Deeply nested placeables (5+ levels) — `NestedPlaceablesTest`
   asserts 1, 5, and 10 levels.
-- [ ] **2.6** Very long messages (10K+ chars) — test for performance cliff
+- [x] **2.6** Very long messages (10K+ chars) — test for performance cliff.
+  `LongMessagesTest` (jvmTest) covers smoke parsing at 10K and 100K chars,
+  a scaling test that asserts 10x input length → ≤ 30x time (catches
+  O(n²)+ regressions), and a many-placeables test (1000 `{ $x }`
+  placeables produce a proportional AST without quadratic blowup).
 - [ ] **2.7** Concurrent access — `FluentBundle` should be safe for multi-thread
   reads after population (Kotlin/Native needs `AtomicReference` or freeze)
 - [ ] **2.8** Malicious input — billion laughs, cyclic references exceeding limit,
