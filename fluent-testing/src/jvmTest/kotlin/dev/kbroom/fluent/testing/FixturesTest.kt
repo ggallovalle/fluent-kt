@@ -25,9 +25,11 @@ val FixturesTest by testSuite {
 
     test("browser en-US") {
         val bundle = FluentBundle(listOf(LanguageIdentifier.parse("en-US")))
-        val resource = loadResource("en-US/browser/browser")
-        assertTrue(resource != null, "Should load en-US/browser/browser.ftl")
-        bundle.addResource(resource!!)
+        val resource = assertNotNull(
+            loadResource("en-US/browser/browser"),
+            "Should load en-US/browser/browser.ftl",
+        )
+        bundle.addResource(resource)
         bundle.addBuiltins()
 
         val result = bundle.format("browser-main-window-title", null)
@@ -36,9 +38,11 @@ val FixturesTest by testSuite {
 
     test("browser Polish") {
         val bundle = FluentBundle(listOf(LanguageIdentifier.parse("pl")))
-        val resource = loadResource("pl/browser/browser")
-        assertTrue(resource != null, "Should load pl/browser/browser.ftl")
-        bundle.addResource(resource!!)
+        val resource = assertNotNull(
+            loadResource("pl/browser/browser"),
+            "Should load pl/browser/browser.ftl",
+        )
+        bundle.addResource(resource)
         bundle.addBuiltins()
 
         val result = bundle.format("browser-main-window-title", null)

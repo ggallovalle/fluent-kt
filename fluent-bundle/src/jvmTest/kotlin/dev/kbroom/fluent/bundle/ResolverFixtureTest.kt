@@ -1,25 +1,15 @@
 package dev.kbroom.fluent.bundle
 
 import de.infix.testBalloon.framework.core.testSuite
-import dev.kbroom.fluent.bundle.FluentArgs
 import dev.kbroom.fluent.bundle.types.FluentValue
 import dev.kbroom.fluent.intl.LanguageIdentifier
-import dev.kbroom.fluent.testing.bundle.TestAssert
 import dev.kbroom.fluent.testing.bundle.TestBundle
-import dev.kbroom.fluent.testing.bundle.TestCase
 import dev.kbroom.fluent.testing.bundle.TestDefaults
 import dev.kbroom.fluent.testing.bundle.TestResource
 import dev.kbroom.fluent.testing.bundle.TestSuite
 import dev.kbroom.fluent.testing.bundle.loadDefaults
 import dev.kbroom.fluent.testing.bundle.loadResolverFixtures
-import kotlin.test.assertEquals
 import kotlin.test.assertTrue
-
-/**
- * Signal that a fixture assertion failed. The [message] is rendered by the
- * test entry point and prepended with the file/suite index.
- */
-private class FixtureAssertionError(message: String, cause: Throwable? = null) : AssertionError(message, cause)
 
 /**
  * Resolver fixture tests - compare bundle formatting against reference YAML fixtures.
@@ -67,7 +57,7 @@ val ResolverFixtureTest by testSuite {
 private fun testSuiteHelper(suite: TestSuite, defaults: TestDefaults?, scope: TestScope) {
     if (suite.skip == true) return
 
-    val newScope = scope.push(suite.name, suite.resources ?: emptyList(), suite.bundles ?: emptyList())
+    val newScope = scope.push(suite.name, suite.resources.orEmpty(), suite.bundles.orEmpty())
 
     if (suite.suites != null) {
         for (subSuite in suite.suites) {
@@ -75,61 +65,6 @@ private fun testSuiteHelper(suite: TestSuite, defaults: TestDefaults?, scope: Te
         }
     }
 }
-
-private fun testTestHelper(test: TestCase, defaults: TestDefaults?, scope: TestScope) {
-    if (test.skip == true) return
-
-    val testScope = scope.push(test.name, test.resources ?: emptyList(), test.bundles ?: emptyList())
-    val bundles = testScope.getBundles(defaults)
-
-    for (assertion in test.asserts) {
-        try {
-            testAssertHelper(assertion, bundles)
-        } catch (e: Throwable) {
-            val msg = "${test.name}: ${assertion.id}: ${e.message ?: "null message"}"
-            throw FixtureAssertionError(msg, e)
-        }
-    }
-}
-
-private fun testAssertHelper(assertion: TestAssert, bundles: Map<String, FluentBundle>) {
-    val bundle = resolveBundle(bundles, assertion.bundle)
-    val attributeName = assertion.attribute
-    val args = buildArgs(assertion.args)
-    val actualValue = if (attributeName != null) {
-        val message = bundle.getMessage(assertion.id)
-            ?: throw FixtureAssertionError("Message not found: ${assertion.id}")
-        val attribute = message.getAttribute(attributeName)
-            ?: throw FixtureAssertionError("Attribute not found: $attributeName")
-        bundle.formatPattern(attribute.value, args)
-    } else {
-        bundle.formatMessage(assertion.id, args) ?: ""
-    }
-
-    if (assertion.value != null) {
-        assertEquals(assertion.value, actualValue, "Value mismatch for ${assertion.id}")
-    }
-}
-
-private fun resolveBundle(bundles: Map<String, FluentBundle>, name: String?): FluentBundle = if (name == null) {
-    bundles.values.firstOrNull()
-        ?: throw FixtureAssertionError("No bundles available")
-} else {
-    bundles[name] ?: throw FixtureAssertionError("Bundle not found: $name")
-}
-
-private fun buildArgs(argMap: Map<String, String>?): FluentArgs? {
-    if (argMap == null) return null
-    val fluentArgs = FluentArgs()
-    for ((key, value) in argMap) {
-        val intVal = value.toIntOrNull()
-        if (intVal != null) fluentArgs.set(key, intVal) else fluentArgs.set(key, value)
-    }
-    return fluentArgs
-}
-
-private fun formatPatternHelper(pattern: dev.kbroom.fluent.syntax.Pattern, bundle: FluentBundle): String =
-    bundle.formatPattern(pattern)
 
 /**
  * Scope tracks hierarchical test context.
