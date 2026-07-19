@@ -54,48 +54,49 @@ val StructuralAstEqualsTest by testSuite {
         is JsonNull -> element
     }
 
+    @Suppress("CyclomaticComplexMethod")
     fun assertStructurallyEqual(expected: JsonElement, actual: JsonElement, path: String = "$") {
         if (expected::class != actual::class) {
             fail("$path: kind mismatch: expected ${expected::class.simpleName}, got ${actual::class.simpleName}")
         }
         when (expected) {
-            is JsonObject -> assertObjectEqual(expected, actual as JsonObject, path)
-            is JsonArray -> assertArrayEqual(expected, actual as JsonArray, path)
-            is JsonPrimitive -> assertPrimitiveEqual(expected, actual as JsonPrimitive, path)
-            is JsonNull -> { /* both are JsonNull — always equal */ }
-            else -> fail("unhandled: ${expected::class.simpleName}")
-        }
-    }
-
-    private fun assertObjectEqual(expected: JsonObject, actual: JsonObject, path: String) {
-        val expKeys = expected.keys.toSet()
-        val actKeys = actual.keys.toSet()
-        if (expKeys != actKeys) {
-            val missing = expKeys - actKeys
-            val extra = actKeys - expKeys
-            val detail = buildString {
-                if (missing.isNotEmpty()) append(" missing=$missing")
-                if (extra.isNotEmpty()) append(" extra=$extra")
+            is JsonObject -> {
+                val a = actual as JsonObject
+                val expKeys = expected.keys.toSet()
+                val actKeys = a.keys.toSet()
+                if (expKeys != actKeys) {
+                    val missing = expKeys - actKeys
+                    val extra = actKeys - expKeys
+                    val detail = buildString {
+                        if (missing.isNotEmpty()) append(" missing=$missing")
+                        if (extra.isNotEmpty()) append(" extra=$extra")
+                    }
+                    fail("$path: key mismatch$detail; expected=$expected actual=$a")
+                }
+                for ((k, v) in expected) {
+                    assertStructurallyEqual(v, a.getValue(k), "$path.$k")
+                }
             }
-            fail("$path: key mismatch$detail; expected=$expected actual=$actual")
-        }
-        for ((k, v) in expected) {
-            assertStructurallyEqual(v, actual.getValue(k), "$path.$k")
-        }
-    }
 
-    private fun assertArrayEqual(expected: JsonArray, actual: JsonArray, path: String) {
-        if (expected.size != actual.size) {
-            fail("$path: array length mismatch: expected ${expected.size}, got ${actual.size}")
-        }
-        for ((i, v) in expected.withIndex()) {
-            assertStructurallyEqual(v, actual[i], "$path[$i]")
-        }
-    }
+            is JsonArray -> {
+                val a = actual as JsonArray
+                if (expected.size != a.size) {
+                    fail("$path: array length mismatch: expected ${expected.size}, got ${a.size}")
+                }
+                for ((i, v) in expected.withIndex()) {
+                    assertStructurallyEqual(v, a[i], "$path[$i]")
+                }
+            }
 
-    private fun assertPrimitiveEqual(expected: JsonPrimitive, actual: JsonPrimitive, path: String) {
-        if (expected != actual) {
-            fail("$path: primitive mismatch: expected=$expected actual=$actual")
+            is JsonPrimitive -> {
+                if (expected != actual as JsonPrimitive) {
+                    fail("$path: primitive mismatch: expected=$expected actual=$actual")
+                }
+            }
+
+            is JsonNull -> { /* both are JsonNull — always equal */ }
+
+            else -> fail("unhandled: ${expected::class.simpleName}")
         }
     }
 
