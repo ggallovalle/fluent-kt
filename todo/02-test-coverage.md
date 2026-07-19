@@ -45,9 +45,18 @@ have no coverage at all.
   placeables produce a proportional AST without quadratic blowup).
 - [ ] **2.7** Concurrent access — `FluentBundle` should be safe for multi-thread
   reads after population (Kotlin/Native needs `AtomicReference` or freeze)
-- [ ] **2.8** Malicious input — billion laughs, cyclic references exceeding limit,
-  deeply nested placeables. Requires implementing the limits before a test
-  can assert them; deferred as a separate scope.
+- [x] **2.8** Malicious input — billion laughs, cyclic references exceeding limit,
+  deeply nested placeables. Resolver now limits total placeables resolved per
+  `formatPattern` call (default 100, matching fluent-rs `MAX_PLACEABLES`).
+  `PlaceableCounter` shared across child scopes ensures term-based
+  exponential fan-out is caught. Parser limits nested placeable depth to 100
+  (`MAX_PLACEABLE_DEPTH`) to prevent stack exhaustion. Cycle detection for
+  terms fixed (child scopes now share the parent's placeable tracking set).
+  Security-critical errors (Cyclic, TooManyPlaceables) propagate from child
+  term scopes to the parent. `MaliciousInputTest` covers 8 scenarios:
+  self-reference, mutual cycle, 3-node cycle, term self-reference, term
+  billion laughs, message billion laughs, normal-placeable no-false-positive,
+  and normal-term-chain no-false-positive.
 
 ### D. Error reporting ✅
 
@@ -78,7 +87,7 @@ have no coverage at all.
 ./gradlew jvmTest linuxX64Test detektAll
 # All green. 35+ suites. Per-module test totals (jvm):
 # fluent-syntax: 8 test suites, 30+ cases
-# fluent-bundle: 6 test suites, 35+ cases including 49-failure ResolverFixtureTest
+# fluent-bundle: 7 test suites, 55+ cases including 8 MaliciousInputTest scenarios
 # fluent-resmgr: 1 test suite, 6 cases
 ```
 

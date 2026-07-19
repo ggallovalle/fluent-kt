@@ -71,11 +71,21 @@ class FluentParser {
      */
     private var hasInvalidPlaceable = false
 
+    /**
+     * Current nesting depth of placeable expressions. Incremented when
+     * entering `{ ... }` in [parsePattern] or [parseInlineExpression],
+     * decremented on exit. When the depth exceeds [MAX_PLACEABLE_DEPTH]
+     * the parser marks the message as broken to prevent stack exhaustion
+     * on malicious input.
+     */
+    private var placeableDepth = 0
+
     fun parse(source: String): Resource {
         this.source = source
         this.pos = 0
         this.errors.clear()
         this.hasInvalidPlaceable = false
+        this.placeableDepth = 0
 
         val body = mutableListOf<Entry>()
         var bufferedComment: Entry? = null
@@ -639,42 +649,10 @@ class FluentParser {
 
             when {
                 peek() == '{' -> {
-                    pos++ // skip {
-                    skipInlineWhitespace()
-                    if (peek() == '}') {
-                        pos++ // skip }
-                        continue
+                    val placeable = parsePlaceableElement()
+                    if (placeable != null) {
+                        elements.add(placeable)
                     }
-                    if (peek() == '\n' || peek() == '\r' || pos >= source.length) {
-                        // Unterminated placeable at end of line — the
-                        // parser cannot recover an expression here. Mark
-                        // the message as broken so parseMessage emits Junk
-                        // and lets the outer loop handle the next line
-                        // (which is often a terminating `#` comment).
-                        hasInvalidPlaceable = true
-                        continue
-                    }
-                    val placeholderStart = pos
-                    val expr = parseExpression()
-                    skipWhitespace()
-                    if (peek() == '}') {
-                        pos++ // skip }
-                    } else if (placeholderStart != pos) {
-                        // The expression consumed characters but we never
-                        // landed on the matching `}` — this is a malformed
-                        // placeable (e.g. `{1x}`). Mark the enclosing
-                        // message as broken so parseMessage turns it into
-                        // Junk.
-                        hasInvalidPlaceable = true
-                        errors.add(
-                            ParserError.Error(
-                                ErrorKind.UnbalancedClosingBrace,
-                                "Missing closing brace in placeable",
-                                Span(placeholderStart - 1, pos, source),
-                            ),
-                        )
-                    }
-                    elements.add(PatternElement.Placeable(expr))
                     atStartOfContent = false
                 }
 
@@ -695,6 +673,57 @@ class FluentParser {
         // Dedent multiline values
         val dedented = dedentPattern(elements)
         return Pattern(dedented)
+    }
+
+    /**
+     * Parse a single `{ expr }` placeable inside a pattern. Handles
+     * empty braces, depth limits, unterminated placeables, and malformed
+     * expressions. Returns the [PatternElement.Placeable] or `null` when
+     * the braces were empty (and consumed silently).
+     */
+    @Suppress("ReturnCount")
+    private fun parsePlaceableElement(): PatternElement? {
+        pos++ // skip {
+        skipInlineWhitespace()
+        if (peek() == '}') {
+            pos++ // skip }
+            return null
+        }
+        placeableDepth++
+        if (placeableDepth > MAX_PLACEABLE_DEPTH) {
+            placeableDepth--
+            hasInvalidPlaceable = true
+            errors.add(
+                ParserError.Error(
+                    ErrorKind.MaxDepthExceeded,
+                    "Placeable nesting exceeds maximum depth ($MAX_PLACEABLE_DEPTH)",
+                    Span(pos, pos, source),
+                ),
+            )
+            return null
+        }
+        if (peek() == '\n' || peek() == '\r' || pos >= source.length) {
+            placeableDepth--
+            hasInvalidPlaceable = true
+            return null
+        }
+        val placeholderStart = pos
+        val expr = parseExpression()
+        skipWhitespace()
+        if (peek() == '}') {
+            pos++ // skip }
+        } else if (placeholderStart != pos) {
+            hasInvalidPlaceable = true
+            errors.add(
+                ParserError.Error(
+                    ErrorKind.UnbalancedClosingBrace,
+                    "Missing closing brace in placeable",
+                    Span(placeholderStart - 1, pos, source),
+                ),
+            )
+        }
+        placeableDepth--
+        return PatternElement.Placeable(expr)
     }
 
     private fun dedentPattern(elements: List<PatternElement>): List<PatternElement> {
@@ -883,10 +912,18 @@ class FluentParser {
             // Nested placeable - { expr }
             pos++ // skip {
             skipWhitespace()
-            val expr = parseExpression()
-            skipWhitespace()
-            if (peek() == '}') pos++
-            InlineExpression.Placeable(expr)
+            placeableDepth++
+            if (placeableDepth > MAX_PLACEABLE_DEPTH) {
+                placeableDepth--
+                hasInvalidPlaceable = true
+                InlineExpression.Placeable(Expression.Inline(InlineExpression.StringLiteral("")))
+            } else {
+                val expr = parseExpression()
+                skipWhitespace()
+                if (peek() == '}') pos++
+                placeableDepth--
+                InlineExpression.Placeable(expr)
+            }
         }
 
         else -> {
@@ -1149,6 +1186,15 @@ class FluentParser {
         }
         return Resource(filteredBody)
     }
+
+    companion object {
+        /**
+         * Maximum nesting depth for placeable expressions. When exceeded
+         * the parser marks the enclosing message as broken (Junk) to
+         * prevent stack exhaustion on adversarial input.
+         */
+        const val MAX_PLACEABLE_DEPTH: Int = 100
+    }
 }
 
 @Suppress("AbstractClassCanBeInterface")
@@ -1199,6 +1245,9 @@ sealed class ErrorKind {
     data object ExpectedSimpleExpressionAsSelector : ErrorKind()
     data object ExpectedLiteral : ErrorKind()
 
+    // Security limits
+    data object MaxDepthExceeded : ErrorKind()
+
     // Display name for error messages
     override fun toString(): String = displayName(this)
 }
@@ -1235,6 +1284,7 @@ private fun displayName(kind: ErrorKind): String = when (kind) {
     is ErrorKind.ExpectedInlineExpression -> "Expected an inline expression"
     is ErrorKind.ExpectedSimpleExpressionAsSelector -> "Expected a simple expression as selector"
     is ErrorKind.ExpectedLiteral -> "Expected a string or number literal"
+    is ErrorKind.MaxDepthExceeded -> "Placeable nesting exceeds maximum depth"
 }
 
 data class Span(val start: Int, val end: Int, val sourceText: String) {

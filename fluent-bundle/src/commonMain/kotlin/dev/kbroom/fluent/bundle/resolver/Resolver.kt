@@ -33,12 +33,21 @@ enum class ReferenceKind {
     FUNCTION,
 }
 
+/**
+ * Mutable counter shared across [Scope] instances so that child scopes
+ * (created for term resolution) accumulate toward the same limit.
+ */
+class PlaceableCounter(var count: Int = 0)
+
+@Suppress("LongParameterList")
 class Scope(
     val bundle: FluentBundle,
     val args: FluentArgs?,
     val errors: MutableList<FluentError> = mutableListOf(),
     private val placeables: MutableSet<String> = mutableSetOf(),
     val rootMessageId: String? = null,
+    private val counter: PlaceableCounter = PlaceableCounter(),
+    private val maxPlaceables: Int = DEFAULT_MAX_PLACEABLES,
 ) {
     fun getPlaceables(): Set<String> = placeables.toSet()
 
@@ -53,6 +62,45 @@ class Scope(
 
     fun untrackPlaceable(id: String) {
         placeables.remove(id)
+    }
+
+    /**
+     * Increment the placeable resolution counter. Returns false if the
+     * limit has been exceeded (and records a [ResolverError.TooManyPlaceables]
+     * error the first time the limit is crossed).
+     */
+    fun incrementPlaceables(): Boolean {
+        counter.count++
+        if (counter.count > maxPlaceables) {
+            if (counter.count == maxPlaceables + 1) {
+                // Record the error only once
+                errors.add(FluentError.ResolverError(ResolverError.TooManyPlaceables))
+            }
+            return false
+        }
+        return true
+    }
+
+    /**
+     * Create a child scope that shares this scope's placeable tracking
+     * set and counter (for cycle detection and TooManyPlaceables limits)
+     * but has its own args and error list. Used when resolving term
+     * bodies that need isolated error collection without losing cycle
+     * detection state.
+     */
+    fun childScope(args: FluentArgs?, errors: MutableList<FluentError> = mutableListOf()): Scope = Scope(
+        bundle = bundle,
+        args = args,
+        errors = errors,
+        placeables = placeables,
+        rootMessageId = rootMessageId,
+        counter = counter,
+        maxPlaceables = maxPlaceables,
+    )
+
+    companion object {
+        /** Maximum number of placeables resolved per formatPattern call. */
+        const val DEFAULT_MAX_PLACEABLES: Int = 100
     }
 }
 
@@ -78,6 +126,11 @@ class PatternResolver {
         totalElements: Int,
         scope: Scope,
     ) {
+        if (!scope.incrementPlaceables()) {
+            // Placeable limit exceeded — emit a fallback marker and bail out
+            sb.append("{...}")
+            return
+        }
         val needsIsolation = useIsolating && totalElements > 1 && !isMessageOrTermOrString(element.expression)
         if (needsIsolation) sb.append('\u2068')
         val value = resolveExpression(element.expression, scope)
@@ -269,10 +322,13 @@ class PatternResolver {
         if (attribute == null) return resolveTermBody(term, arguments, scope)
         val attrValue = term.getAttributeValue(attribute) ?: return FluentValue.Str("{-$id.$attribute}")
         val termErrors = mutableListOf<FluentError>()
-        val termScope = scopeForTerm(arguments, scope).let { s ->
-            Scope(s.bundle, s.args, termErrors)
-        }
-        return FluentValue.Str(resolve(attrValue, termScope))
+        val termScope = scope.childScope(
+            args = scopeForTermArgs(arguments, scope),
+            errors = termErrors,
+        )
+        val result = FluentValue.Str(resolve(attrValue, termScope))
+        propagateCriticalErrors(termErrors, scope)
+        return result
     }
 
     private fun resolveTermBody(term: FluentTerm, arguments: CallArguments?, scope: Scope): FluentValue {
@@ -280,27 +336,57 @@ class PatternResolver {
             (arguments.positional.isNotEmpty() || arguments.named.isNotEmpty())
         val termErrors = mutableListOf<FluentError>()
         val resolveScope: Scope = when {
-            hasExplicitArgs -> {
-                val s = scopeForTerm(arguments, scope)
-                Scope(s.bundle, s.args, termErrors)
-            }
+            hasExplicitArgs -> scope.childScope(
+                args = scopeForTermArgs(arguments, scope),
+                errors = termErrors,
+            )
 
-            scope.args != null -> Scope(scope.bundle, FluentArgs(), termErrors)
+            scope.args != null -> scope.childScope(
+                args = FluentArgs(),
+                errors = termErrors,
+            )
 
-            else -> Scope(scope.bundle, scope.args, termErrors)
+            else -> scope.childScope(
+                args = scope.args,
+                errors = termErrors,
+            )
         }
-        return FluentValue.Str(resolve(term.value(), resolveScope))
+        val result = FluentValue.Str(resolve(term.value(), resolveScope))
+        propagateCriticalErrors(termErrors, scope)
+        return result
     }
 
-    private fun scopeForTerm(arguments: CallArguments?, scope: Scope): Scope {
+    /**
+     * Propagate security-critical errors (Cyclic, TooManyPlaceables) from
+     * a child scope's isolated error list to the parent scope so callers
+     * of [FluentBundle.formatPattern] see them. Non-critical term errors
+     * (e.g. missing function references inside a term) stay isolated.
+     */
+    private fun propagateCriticalErrors(childErrors: List<FluentError>, parentScope: Scope) {
+        for (error in childErrors) {
+            if (error is FluentError.ResolverError &&
+                (error.error is ResolverError.Cyclic || error.error is ResolverError.TooManyPlaceables)
+            ) {
+                if (parentScope.errors.none { it == error }) {
+                    parentScope.errors.add(error)
+                }
+            }
+        }
+    }
+
+    /**
+     * Build the [FluentArgs] for a term scope from [CallArguments].
+     * Resolves named argument values against the caller's [scope].
+     */
+    private fun scopeForTermArgs(arguments: CallArguments?, scope: Scope): FluentArgs {
         if (arguments == null || (arguments.positional.isEmpty() && arguments.named.isEmpty())) {
-            return Scope(scope.bundle, FluentArgs(), scope.errors)
+            return FluentArgs()
         }
         val termArgs = FluentArgs()
         for (named in arguments.named) {
             termArgs.set(named.name.name, resolveInlineExpression(named.value, scope))
         }
-        return Scope(scope.bundle, termArgs, scope.errors)
+        return termArgs
     }
 
     private fun resolveTermAsMessage(id: String, attribute: String?, scope: Scope): FluentValue {
