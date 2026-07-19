@@ -133,7 +133,7 @@ val FluentSyntaxTest by testSuite {
         assertEquals("first line continuation", v?.description)
     }
 
-    test("blank line between comment and message - comment binds anyway") {
+    test("blank line ends a single-hash comment block; # does not bind the following message") {
         val parser = FluentParser()
         val source = """
             |# Doc
@@ -141,10 +141,14 @@ val FluentSyntaxTest by testSuite {
             |greeting = Hello
         """.trimMargin()
         val resource = parser.parse(source)
-        // Current implementation: comment binds regardless of blank line
-        assertEquals(1, resource.body.size)
-        val message = resource.body[0] as Entry.Message
-        assertEquals("Doc", message.docComment?.description)
+        // A blank line terminates the single-hash comment block, so the
+        // comment becomes a standalone entry rather than a docComment on
+        // the following message — matching upstream fluent-rs behavior.
+        assertEquals(2, resource.body.size)
+        assertTrue(resource.body[0] is Entry.Comment)
+        val message = resource.body[1] as Entry.Message
+        assertEquals("greeting", message.id.name)
+        assertEquals(null, message.docComment)
     }
 
     test("double hash binds as docComment") {

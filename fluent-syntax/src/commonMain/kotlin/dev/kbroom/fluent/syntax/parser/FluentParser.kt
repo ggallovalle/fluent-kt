@@ -110,7 +110,12 @@ class FluentParser {
         peek() == '#' -> parseComment()
 
         peek() == '-' -> {
-            body.add(bindDocCommentToTerm(parseTerm(), bufferedComment))
+            val termEntry = parseTerm()
+            if (bufferedComment != null) {
+                body.add(bindDocCommentToTerm(termEntry, bufferedComment))
+            } else {
+                body.add(termEntry)
+            }
             null
         }
 
@@ -119,25 +124,74 @@ class FluentParser {
             if (messageEntry is Entry.Message) {
                 body.add(bindDocCommentToMessage(messageEntry, bufferedComment))
             } else {
+                // A buffered doc comment only attaches to a valid message or
+                // term. If the entry became Junk, emit the comment as a
+                // standalone entry first.
+                if (bufferedComment != null) {
+                    body.add(bufferedComment)
+                }
                 body.add(messageEntry)
             }
             null
         }
 
         else -> {
+            // Unrecognized content at the top level. Emit the buffered
+            // comment (if any) as standalone, then collect a Junk entry
+            // spanning this line and any subsequent junk lines.
             bufferedComment?.let(body::add)
-            skipJunkLine()
-            bufferedComment
+            body.add(parseJunkLine(pos))
+            null
         }
     }
 
-    private fun skipJunkLine() {
-        val start = pos
-        skipToNewline()
-        val content = source.substring(start, pos).trim()
-        if (content.isNotEmpty()) {
-            errors.add(ParserError.Error(ErrorKind.InvalidToken, "Invalid token", Span(start, pos, source)))
+    /**
+     * Parse a single junk line plus continuation junk lines, returning a
+     * [Entry.Junk] whose content captures the consumed span. Junk lines are
+     * any lines that are not comments, blank, or valid message/term entries.
+     */
+    private fun parseJunkLine(start: Int): Entry.Junk {
+        val lineStart = start
+        var contentEnd = lineStart
+        while (contentEnd < source.length && source[contentEnd] != '\n' && source[contentEnd] != '\r') {
+            contentEnd++
         }
+        // Include the line's terminator in junk content
+        if (contentEnd < source.length && source[contentEnd] == '\r') contentEnd++
+        if (contentEnd < source.length && source[contentEnd] == '\n') contentEnd++
+        // Continue with subsequent junk lines (terminator already included)
+        while (contentEnd < source.length) {
+            var next = contentEnd
+            while (next < source.length && (source[next] == ' ' || source[next] == '\t')) {
+                next++
+            }
+            if (next >= source.length) break
+            val first = source[next]
+            // Comments, blank lines, valid entries terminate junk
+            if (first == '#') break
+            if (first == '\n' || first == '\r') {
+                if (next < source.length && source[next] == '\r') contentEnd = next + 1 else contentEnd = next
+                if (contentEnd < source.length && source[contentEnd] == '\n') contentEnd++
+                break
+            }
+            if (first == '-' || isIdentifierStart(first)) break
+            // Junk line — consume it
+            while (contentEnd < source.length && source[contentEnd] != '\n' && source[contentEnd] != '\r') {
+                contentEnd++
+            }
+            if (contentEnd < source.length && source[contentEnd] == '\r') contentEnd++
+            if (contentEnd < source.length && source[contentEnd] == '\n') contentEnd++
+        }
+        pos = contentEnd
+        val content = source.substring(lineStart, pos)
+        errors.add(
+            ParserError.Error(
+                ErrorKind.InvalidToken,
+                "Invalid token",
+                Span(lineStart, pos, source),
+            ),
+        )
+        return Entry.Junk(content)
     }
 
     private fun parseComment(): Entry {
@@ -170,15 +224,14 @@ class FluentParser {
         // We need to check if the next line is a blank line (end of comment block)
         // or if it's a continuation (same number of hashes)
         while (pos < source.length) {
-            // Skip any newlines to get to the start of the next line
-            while (pos < source.length && (source[pos] == '\n' || source[pos] == '\r')) {
-                pos++
-            }
+            // Skip ONE line terminator.
+            if (pos < source.length && source[pos] == '\r') pos++
+            if (pos < source.length && source[pos] == '\n') pos++
 
             if (pos >= source.length) break
 
-            // Check for blank line (two or more consecutive newlines)
-            // After skipping initial newlines, check if we're at another newline
+            // Check for blank line: a blank line is one or more newlines
+            // immediately after the line terminator of the previous line.
             if (source[pos] == '\n' || source[pos] == '\r') {
                 break // blank line found
             }
@@ -446,55 +499,73 @@ class FluentParser {
     }
 
     /**
-     * Build a Junk entry that captures the entire broken declaration of
-     * `msg = ...` plus any continuation lines (attributes), stopping at the
-     * first non-attribute, non-blank line. Advance [pos] to the character
-     * immediately after the captured junk's final newline so the outer parse
-     * loop starts at the next entry.
+     * Build a Junk entry that spans from [start] (the declaration site) through
+     * every subsequent non-terminator line. Junk terminates at the first
+     * `#` (comment), blank line, valid message/term identifier, or EOF.
+     * A trailing blank line's terminator is included in the junk content so
+     * round-trip serialization preserves the original spacing.
      */
     private fun junkFromLine(start: Int): Entry.Junk {
-        // Compute the start of the line containing `start`.
+        // Walk back to the start of [start]'s line.
         var lineStart = start
         while (lineStart > 0 && source[lineStart - 1] != '\n' && source[lineStart - 1] != '\r') {
             lineStart--
         }
-        // Walk forward through the current line (excluding its newline) and
-        // any subsequent indented attribute lines. Stop before the terminating
-        // newline of the last line.
+        // Walk forward to the end of the current line (excluding the newline).
         var contentEnd = lineStart
         while (contentEnd < source.length && source[contentEnd] != '\n' && source[contentEnd] != '\r') {
             contentEnd++
         }
-        // Consume subsequent indented attribute lines until a blank line or
-        // a line that doesn't begin with `.`.
+        // Helper to advance over the line terminator and append the newline(s)
+        // to content. Returns the new contentEnd position.
+        fun consumeLineTerminator(): Int {
+            var p = contentEnd
+            if (p < source.length && source[p] == '\r') p++
+            if (p < source.length && source[p] == '\n') p++
+            return p
+        }
+        // Append the current line's newline
+        contentEnd = consumeLineTerminator()
+
+        // Scan forward through subsequent lines. Each non-terminator line is
+        // appended to junk; blank lines append one extra newline and stop.
         while (contentEnd < source.length) {
-            // Examine the next line
+            // Classify the next line.
             var next = contentEnd
-            // Skip CRLF / LF
-            if (next < source.length && source[next] == '\r') next++
-            if (next < source.length && source[next] == '\n') next++
-            var attrLineStart = next
-            while (attrLineStart < source.length && (source[attrLineStart] == ' ' || source[attrLineStart] == '\t')) {
-                attrLineStart++
+            // Skip indentation (an indented line continues the previous
+            // declaration's junk — covered by the upstream "subsequent junk
+            // lines" rule).
+            while (next < source.length && (source[next] == ' ' || source[next] == '\t')) {
+                next++
             }
-            if (attrLineStart >= source.length || source[attrLineStart] != '.') break
-            // It's an attribute line — consume it
-            contentEnd = attrLineStart
+            if (next >= source.length) {
+                // Trailing whitespace only — treat as terminator
+                break
+            }
+            val first = source[next]
+            // Comment line terminates junk (does not get included)
+            if (first == '#') break
+            // Blank line: include its newline in junk and stop
+            if (first == '\n' || first == '\r') {
+                contentEnd = consumeLineTerminator()
+                break
+            }
+            // Valid message identifier or term dash starts a new entry; junk
+            // ends before it.
+            if (first == '-' || isIdentifierStart(first)) break
+            // Otherwise it's a junk line: consume it, append newline.
             while (contentEnd < source.length && source[contentEnd] != '\n' && source[contentEnd] != '\r') {
                 contentEnd++
             }
+            contentEnd = consumeLineTerminator()
         }
-        // Advance parser pos to immediately after the captured junk block,
-        // landing on the start of the next entry's line.
-        if (contentEnd < source.length && source[contentEnd] == '\r') contentEnd++
-        if (contentEnd < source.length && source[contentEnd] == '\n') contentEnd++
         pos = contentEnd
-        val content = source.substring(lineStart, contentEnd)
+        val content = source.substring(lineStart, pos)
         errors.add(
             ParserError.Error(
                 ErrorKind.MissingValue,
                 "Message has no value",
-                Span(start, contentEnd, source),
+                Span(start, pos, source),
             ),
         )
         return Entry.Junk(content)
@@ -569,9 +640,18 @@ class FluentParser {
             when {
                 peek() == '{' -> {
                     pos++ // skip {
-                    skipWhitespace()
+                    skipInlineWhitespace()
                     if (peek() == '}') {
                         pos++ // skip }
+                        continue
+                    }
+                    if (peek() == '\n' || peek() == '\r' || pos >= source.length) {
+                        // Unterminated placeable at end of line — the
+                        // parser cannot recover an expression here. Mark
+                        // the message as broken so parseMessage emits Junk
+                        // and lets the outer loop handle the next line
+                        // (which is often a terminating `#` comment).
+                        hasInvalidPlaceable = true
                         continue
                     }
                     val placeholderStart = pos
