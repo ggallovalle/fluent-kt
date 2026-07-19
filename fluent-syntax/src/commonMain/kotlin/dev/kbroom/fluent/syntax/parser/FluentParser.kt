@@ -329,37 +329,56 @@ class FluentParser {
         }
         pos++ // skip =
 
-        skipWhitespace()
+        // Do NOT skip newlines here unless the value continues on a subsequent
+        // indented line (multi-line pattern). If the line after `=` is blank,
+        // an unindented new entry, or a line beginning with `.` (an
+        // attribute), the value is missing.
+        skipInlineWhitespace()
+        val value = if (peek() == '\n' || peek() == '\r') {
+            // Possible multi-line continuation: scan past blank lines and any
+            // indentation. Only treat as a continuation if the next non-blank
+            // line is indented — a new entry on the next line is not a value.
+            val startScan = pos
+            // Skip one newline (blank line between declaration and value)
+            if (peek() == '\r') pos++
+            if (pos < source.length && peek() == '\n') pos++
+            skipInlineWhitespace()
+            val indented = pos > startScan + 1 &&
+                (source[startScan + 1] == ' ' || source[startScan + 1] == '\t')
+            val hasMore = pos < source.length
+            when {
+                !hasMore -> {
+                    pos = startScan
+                    null
+                }
 
-        // Parse as pattern - Fluent allows inline patterns without outer braces
-        // as long as they contain placeables or are explicitly marked
-        // For now, parse all values as patterns to handle placeables correctly
-        val value = parsePattern()
+                !indented -> {
+                    // No value on this line and next line is unindented (or
+                    // not present) — value is missing.
+                    pos = startScan
+                    null
+                }
 
-        /*
-        val value = if (peek() == '{') {
+                peek() == '.' -> {
+                    // Attribute follows — no value.
+                    pos = startScan
+                    null
+                }
+
+                else -> parsePattern()
+            }
+        } else if (pos < source.length) {
             parsePattern()
         } else {
-            // Simple string value
-            val valueStart = pos
-            while (pos < source.length && peek() != '\n') {
-                pos++
-            }
-            val text = source.substring(valueStart, pos).trim()
-            if (text.isNotEmpty()) {
-                Pattern(listOf(PatternElement.TextElement(text)))
-            } else {
-                null
-            }
+            null
         }
-         */
 
         val attributes = mutableListOf<Attribute>()
         while (true) {
             skipWhitespace()
             if (peek() != '.') break
             pos++ // skip .
-            skipWhitespace()
+            skipInlineWhitespace()
             val attrId = parseIdentifier()
             skipWhitespace()
             if (peek() != '=') {
@@ -373,14 +392,92 @@ class FluentParser {
                 break
             }
             pos++ // skip =
-            skipWhitespace()
+            skipInlineWhitespace()
             val attrValue = parsePattern()
             attributes.add(Attribute(Identifier(attrId), attrValue))
         }
 
         val comment = parseInlineComment()
 
+        // Upstream behavior: a message with no usable value and no usable
+        // attributes becomes a Junk entry so it does not silently corrupt the
+        // message catalog.
+        val valueIsEmpty = value == null || value.elements.isEmpty()
+        val attrsAllEmpty = attributes.isNotEmpty() &&
+            attributes.all { it.value.elements.isEmpty() }
+        if (valueIsEmpty && attributes.isEmpty()) {
+            return junkFromLine(start)
+        }
+        if (valueIsEmpty && attrsAllEmpty) {
+            return junkFromLine(start)
+        }
+
         return Entry.Message(Identifier(id), value, attributes, comment)
+    }
+
+    /**
+     * Build a Junk entry that captures the entire broken declaration of
+     * `msg = ...` plus any continuation lines (attributes), stopping at the
+     * first non-attribute, non-blank line. Advance [pos] to the character
+     * immediately after the captured junk's final newline so the outer parse
+     * loop starts at the next entry.
+     */
+    private fun junkFromLine(start: Int): Entry.Junk {
+        // Compute the start of the line containing `start`.
+        var lineStart = start
+        while (lineStart > 0 && source[lineStart - 1] != '\n' && source[lineStart - 1] != '\r') {
+            lineStart--
+        }
+        // Walk forward through the current line (excluding its newline) and
+        // any subsequent indented attribute lines. Stop before the terminating
+        // newline of the last line.
+        var contentEnd = lineStart
+        while (contentEnd < source.length && source[contentEnd] != '\n' && source[contentEnd] != '\r') {
+            contentEnd++
+        }
+        // Consume subsequent indented attribute lines until a blank line or
+        // a line that doesn't begin with `.`.
+        while (contentEnd < source.length) {
+            // Examine the next line
+            var next = contentEnd
+            // Skip CRLF / LF
+            if (next < source.length && source[next] == '\r') next++
+            if (next < source.length && source[next] == '\n') next++
+            var attrLineStart = next
+            while (attrLineStart < source.length && (source[attrLineStart] == ' ' || source[attrLineStart] == '\t')) {
+                attrLineStart++
+            }
+            if (attrLineStart >= source.length || source[attrLineStart] != '.') break
+            // It's an attribute line — consume it
+            contentEnd = attrLineStart
+            while (contentEnd < source.length && source[contentEnd] != '\n' && source[contentEnd] != '\r') {
+                contentEnd++
+            }
+        }
+        // Advance parser pos to immediately after the captured junk block,
+        // landing on the start of the next entry's line.
+        if (contentEnd < source.length && source[contentEnd] == '\r') contentEnd++
+        if (contentEnd < source.length && source[contentEnd] == '\n') contentEnd++
+        pos = contentEnd
+        val content = source.substring(lineStart, contentEnd)
+        errors.add(
+            ParserError.Error(
+                ErrorKind.MissingValue,
+                "Message has no value",
+                Span(start, contentEnd, source),
+            ),
+        )
+        return Entry.Junk(content)
+    }
+
+    /**
+     * Skip spaces and tabs only — not newlines. Used for inline whitespace
+     * between tokens on a single line.
+     */
+    private fun skipInlineWhitespace() {
+        while (pos < source.length && (source[pos] == ' ' || source[pos] == '\t')) {
+            pos++
+        }
     }
 
     private fun parseTerm(): Entry.Term {
