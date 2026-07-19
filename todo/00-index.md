@@ -41,8 +41,8 @@ Priority-ordered list of work items to reach a publishable v1.0.0.
 
 ## Current snapshot
 
-- **Commits**: 10 (since session start)
-- **Tests**: 34/35 suites green, 1 suite (ResolverFixtureTest) has 2 parser-level failures
+- **Commits**: 13 (since session start)
+- **Tests**: all suites green — ResolverFixtureTest no longer skips err1/err3; ParserFixtureTest passes; StructuralAstEqualsTest covers junk.ftl no-Message invariant
 - **Modules**: 8 (fluent-syntax, fluent-bundle, fluent-fallback, fluent-pseudo, fluent-resmgr, fluent-testing, fluent, intl-memoizer)
 - **Dead modules**: 4 (fluent-compiler, fluent-compiler-annotations, fluent-gradle-plugin, fluent-sample)
 - **Targets**: JVM + LinuxX64

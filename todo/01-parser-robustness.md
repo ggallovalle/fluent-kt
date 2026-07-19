@@ -25,19 +25,20 @@ that `FluentBundle` filters out.
 
 ## Tasks
 
-- [ ] **1.1** Add `Junk` entry handling to `FluentParser.parseMessage()` — when a
+- [x] **1.1** Add `Junk` entry handling to `FluentParser.parseMessage()` — when a
   message has no value AND no valid attributes, produce `Entry.Junk` with the raw
   source text
-- [ ] **1.2** Add `Junk` entry handling to `FluentParser.parseAttribute()` — when
+- [x] **1.2** Add `Junk` entry handling to `FluentParser.parseAttribute()` — when
   an attribute value is empty, produce Junk or skip the attribute
-- [ ] **1.3** Add parser-level validation for empty placeables `{}` — should produce
+- [x] **1.3** Add parser-level validation for empty placeables `{}` — should produce
   a parse error, not an empty Placeable expression
-- [ ] **1.4** Verify against upstream fixture `junk.ftl` — the structural comparison
-  test already covers this; ensure all junk cases produce `Entry.Junk` with correct
-  `annotations` field
-- [ ] **1.5** Remove `isBrokenMessage` workaround from `FluentBundle.addResource`
+- [~] **1.4** Verify against upstream fixture `junk.ftl` — partial coverage:
+  malformed placeables (`{1x}`) now produce Junk; full structural match still
+  needs upstream-style `##` group-comment handling when followed by Junk
+  (deferred — the cases that drive the failing resolver fixtures are covered)
+- [x] **1.5** Remove `isBrokenMessage` workaround from `FluentBundle.addResource`
   once parser produces Junk entries for these cases
-- [ ] **1.6** The 2 remaining resolver fixture failures (`err1`, `err3`) should pass
+- [x] **1.6** The 2 remaining resolver fixture failures (`err1`, `err3`) should pass
   once the parser is fixed
 
 ## Verification
