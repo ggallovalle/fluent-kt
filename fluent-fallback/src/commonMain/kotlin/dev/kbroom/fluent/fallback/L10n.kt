@@ -178,12 +178,14 @@ open class Localization<G, P, A>(
     fun formatValue(id: String, args: FluentArgs? = null): String? = format(id, args)
 
     /**
-     * Format an attribute.
+     * Format an attribute of a message.
+     *
+     * Delegates to [FluentBundle.formatAttribute] which uses the AST path
+     * (`FluentMessage.getAttributeValue`) rather than string concatenation.
      */
     fun formatAttribute(id: String, attribute: String, args: FluentArgs? = null): String? {
         for (bundle in currentBundles) {
-            // Would need to add attribute formatting to FluentMessage
-            val result = bundle.format("$id.$attribute", args)
+            val result = bundle.formatAttribute(id, attribute, args)
             if (result != null) return result
         }
         return null
@@ -207,9 +209,13 @@ open class Localization<G, P, A>(
 
     /**
      * Get all available locales.
+     *
+     * Returns the locale for every bundle that has at least one message or
+     * term entry. Replaces the stale fluent-rs "hasMessage('')" sentinel with
+     * a direct entries-isEmpty check.
      */
     fun getAvailableLocales(): List<LanguageIdentifier> = currentBundles.filter {
-        it.hasMessage("")
+        it.entries().isNotEmpty()
     }.mapIndexedNotNull { index, _ ->
         currentLocales.getOrNull(index)
     }
@@ -244,7 +250,8 @@ open class Localization<G, P, A>(
         currentErrors = emptyList()
         for ((index, resourceId) in resourceIds.withIndex()) {
             if (resourceId.type == ResourceType.Required) {
-                if (index >= currentBundles.size || currentBundles.getOrNull(index)?.hasMessage("") != true) {
+                val bundle = currentBundles.getOrNull(index)
+                if (bundle == null || bundle.entries().isEmpty()) {
                     currentErrors = currentErrors + L10nError.MissingResource(resourceId, currentLocales)
                 }
             }
@@ -267,6 +274,9 @@ class SimpleLocalization(private val bundle: FluentBundle) :
 
     init {
         setLocales(bundle.locales)
+        // SimpleLocalization has no explicit resource IDs; load the bundle directly.
+        setResourceIds(listOf(ResourceId("default", ResourceType.Required)))
+        regenerateBundles()
     }
 }
 

@@ -10,11 +10,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
-/**
- * Property-based tests using kotest-property. Each test exercises an
- * invariant across an input space; kotest shrinks to a minimal failing
- * case on regression.
- */
 val BundlePropertyTest by testSuite {
 
     /**
@@ -45,11 +40,12 @@ val BundlePropertyTest by testSuite {
         // The invariant from todo/02-test-coverage.md: 'addResource
         // followed by getMessage always retrieves the same message'.
         checkAll(arbIdentifier, arbValueText) { id, value ->
-            val bundle = FluentBundle(listOf(LanguageIdentifier.parse("en")))
-            val result = bundle.addResource(
+            val builder = FluentBundleBuilder.builder(listOf(LanguageIdentifier.parse("en")))
+            val result = builder.addResource(
                 FluentResource.tryNew("$id = $value").getOrThrow(),
             )
             assertTrue(result.isSuccess, "addResource should succeed for valid FTL")
+            val bundle = builder.build()
 
             val message = bundle.getMessage(id)
             assertNotNull(message, "getMessage($id) should return a value after addResource")
@@ -74,7 +70,7 @@ val BundlePropertyTest by testSuite {
         // getMessage returns null. This is the inverse invariant to the
         // above — together they pin down the mapping.
         checkAll(arbIdentifier) { id ->
-            val bundle = FluentBundle(listOf(LanguageIdentifier.parse("en")))
+            val bundle = fluentBundle(listOf(LanguageIdentifier.parse("en")))
             assertEquals(null, bundle.getMessage(id), "getMessage($id) on empty bundle")
             assertEquals(null, bundle.format(id), "format($id) on empty bundle")
             assertEquals(false, bundle.hasMessage(id), "hasMessage($id) on empty bundle")

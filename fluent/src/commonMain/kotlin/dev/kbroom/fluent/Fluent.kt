@@ -15,26 +15,27 @@ import dev.kbroom.fluent.intl.LanguageIdentifier
  * ```kotlin
  * import dev.kbroom.fluent.*
  *
- * // Create a bundle
- * val bundle = FluentBundle(listOf(LanguageIdentifier.parse("en-US")))
+ * // Create a bundle via the DSL
+ * val bundle = fluentBundle(locales = listOf(LanguageIdentifier.parse("en"))) {
+ *     resource("hello = Hello, { $name }!")
+ *     builtins()
+ * }
  *
- * // Add resources
- * val resource = FluentResource.tryNew("hello = Hello, { $name }!").getOrThrow()
- * bundle.addResource(resource)
- * bundle.addBuiltins()
- *
- * // Format a message
+ * // Format
  * val args = fluentArgsOf("name" to "World")
- * val result = bundle.format("hello", args)
- * println(result) // "Hello, World!"
+ * val greeting = bundle.format("hello", args)
+ * println(greeting) // "Hello, World!"
  * ```
  */
 fun parseFtl(source: String): Result<FluentResource> = FluentResource.tryNew(source)
 
 /**
  * Convenience function to create a FluentBundle with defaults.
+ *
+ * Equivalent to [fluentBundle] in the `fluent-bundle` module — re-exported
+ * here for users who want a single import.
  */
-fun fluentBundle(locales: List<LanguageIdentifier>): FluentBundle = FluentBundle(locales)
+fun fluentBundle(locales: List<LanguageIdentifier>): FluentBundle = dev.kbroom.fluent.bundle.fluentBundle(locales)
 
 /**
  * Create FluentArgs from key-value pairs.

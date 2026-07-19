@@ -239,28 +239,28 @@ class TestScope(private val levels: List<ScopeLevel> = emptyList()) {
         val useIsolating = firstNonNull(config?.useIsolating, defaults?.bundle?.useIsolating, true)
         val functions = firstNonNull(config?.functions, defaults?.bundle?.functions, emptyList())
         val langIds = locales.map { LanguageIdentifier.parse(it) }
-        val bundle = FluentBundle(langIds, useIsolating)
-        bundle.addBuiltins()
-        registerFixtureFunctions(bundle, functions)
-        applyFixtureTransform(bundle, config?.transform)
-        registerExtraResources(bundle, extraResources)
-        return bundle
+        val builder = FluentBundleBuilder.builder(langIds, useIsolating)
+        builder.addBuiltins()
+        registerFixtureFunctions(builder, functions)
+        applyFixtureTransform(builder, config?.transform)
+        registerExtraResources(builder, extraResources)
+        return builder.build()
     }
 
     private fun <T> firstNonNull(a: T?, b: T?, c: T): T = a ?: b ?: c
 
-    private fun registerFixtureFunctions(bundle: FluentBundle, functions: List<String>) {
+    private fun registerFixtureFunctions(builder: FluentBundleBuilder, functions: List<String>) {
         val builtInFunctions = setOf("NUMBER", "PLURAL", "CONCAT", "SUM", "IDENTITY")
         functions.filter { it !in builtInFunctions }.forEach { fnName ->
-            bundle.addFunction(fnName) { args, _ ->
+            builder.addFunction(fnName) { args, _ ->
                 args.firstOrNull() ?: FluentValue.Str("$fnName()")
             }
         }
     }
 
-    private fun applyFixtureTransform(bundle: FluentBundle, transformName: String?) {
+    private fun applyFixtureTransform(builder: FluentBundleBuilder, transformName: String?) {
         transformName ?: return
-        bundle.setTransform { text ->
+        builder.setTransform { text ->
             when (transformName) {
                 "example" -> text.replace("a", "A")
                 else -> text
@@ -268,14 +268,14 @@ class TestScope(private val levels: List<ScopeLevel> = emptyList()) {
         }
     }
 
-    private fun registerExtraResources(bundle: FluentBundle, extraResources: List<String>) {
+    private fun registerExtraResources(builder: FluentBundleBuilder, extraResources: List<String>) {
         for (source in extraResources) {
             val resource = FluentResource.tryNew(source)
             if (resource.isFailure) {
                 println("Warning: Failed to parse resource: ${resource.exceptionOrNull()?.message}")
                 continue
             }
-            bundle.addResourceOverriding(resource.getOrThrow())
+            builder.addResourceOverriding(resource.getOrThrow())
         }
     }
 }

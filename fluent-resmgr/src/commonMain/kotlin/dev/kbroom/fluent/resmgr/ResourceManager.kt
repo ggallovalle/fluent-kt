@@ -2,6 +2,7 @@ package dev.kbroom.fluent.resmgr
 
 import dev.kbroom.fluent.bundle.FluentBundle
 import dev.kbroom.fluent.bundle.FluentResource
+import dev.kbroom.fluent.bundle.fluentBundle
 import dev.kbroom.fluent.fallback.ResourceId
 import dev.kbroom.fluent.intl.LanguageIdentifier
 
@@ -10,22 +11,17 @@ import dev.kbroom.fluent.intl.LanguageIdentifier
  */
 open class ResourceManager(private val basePath: String) {
 
-    fun getBundle(locales: List<LanguageIdentifier>, resourceIds: List<ResourceId>): FluentBundle {
-        val bundle = FluentBundle(locales)
-
-        for (resourceId in resourceIds) {
-            val content = loadResource(locales.first(), resourceId)
-            if (content != null) {
-                val resource = FluentResource.tryNew(content).getOrNull()
-                if (resource != null) {
-                    bundle.addResourceOverriding(resource)
+    fun getBundle(locales: List<LanguageIdentifier>, resourceIds: List<ResourceId>): FluentBundle =
+        fluentBundle(locales) {
+            for (resourceId in resourceIds) {
+                val content = loadResource(locales.first(), resourceId)
+                if (content != null) {
+                    val resource = FluentResource.tryNew(content).getOrNull()
+                    if (resource != null) addResourceOverriding(resource)
                 }
             }
+            addBuiltins()
         }
-
-        bundle.addBuiltins()
-        return bundle
-    }
 
     fun getBundles(
         locales: List<LanguageIdentifier>,
@@ -34,25 +30,23 @@ open class ResourceManager(private val basePath: String) {
         val result = linkedMapOf<LanguageIdentifier, FluentBundle>()
 
         for (locale in locales) {
-            val bundle = FluentBundle(listOf(locale))
-
-            for (resourceId in resourceIds) {
-                val content = loadResource(locale, resourceId)
-                if (content != null) {
-                    val resource = FluentResource.tryNew(content).getOrNull()
-                    if (resource != null) {
-                        bundle.addResourceOverriding(resource)
+            val bundle = fluentBundle(listOf(locale)) {
+                for (resourceId in resourceIds) {
+                    val content = loadResource(locale, resourceId)
+                    if (content != null) {
+                        val resource = FluentResource.tryNew(content).getOrNull()
+                        if (resource != null) addResourceOverriding(resource)
                     }
                 }
+                addBuiltins()
             }
-
-            bundle.addBuiltins()
             result[locale] = bundle
         }
 
         return result
     }
 
+    @Suppress("SwallowedException")
     internal open fun loadResource(locale: LanguageIdentifier, resourceId: ResourceId): String? {
         val fileName = "${resourceId.id}.ftl"
         val paths = listOf(
@@ -65,8 +59,10 @@ open class ResourceManager(private val basePath: String) {
             try {
                 val content = readFile(path)
                 if (content != null) return content
-            } catch (@Suppress("TooGenericExceptionCaught", "SwallowedException") e: Exception) {
-                // Continue trying the next path.
+            } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+                // Continue trying the next path. The original exception
+                // is intentionally discarded — fallback lookup is the
+                // contract here; if every path fails we return null.
             }
         }
         return null
@@ -94,21 +90,19 @@ class CallbackResourceManager(private val basePath: String) {
         }
     }
 
-    private fun loadBundle(locales: List<LanguageIdentifier>, resourceIds: List<ResourceId>): FluentBundle {
-        val bundle = FluentBundle(locales)
-        for (resourceId in resourceIds) {
-            val content = loadResource(locales.first(), resourceId)
-            if (content != null) {
-                val resource = FluentResource.tryNew(content).getOrNull()
-                if (resource != null) {
-                    bundle.addResourceOverriding(resource)
+    private fun loadBundle(locales: List<LanguageIdentifier>, resourceIds: List<ResourceId>): FluentBundle =
+        fluentBundle(locales) {
+            for (resourceId in resourceIds) {
+                val content = loadResource(locales.first(), resourceId)
+                if (content != null) {
+                    val resource = FluentResource.tryNew(content).getOrNull()
+                    if (resource != null) addResourceOverriding(resource)
                 }
             }
+            addBuiltins()
         }
-        bundle.addBuiltins()
-        return bundle
-    }
 
+    @Suppress("SwallowedException")
     private fun loadResource(locale: LanguageIdentifier, resourceId: ResourceId): String? {
         val fileName = "${resourceId.id}.ftl"
         val paths = listOf(
@@ -120,8 +114,10 @@ class CallbackResourceManager(private val basePath: String) {
             try {
                 val content = readFile(path)
                 if (content != null) return content
-            } catch (@Suppress("TooGenericExceptionCaught", "SwallowedException") e: Exception) {
-                // Continue trying the next path.
+            } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+                // Continue trying the next path. The original exception
+                // is intentionally discarded — fallback lookup is the
+                // contract here; if every path fails we return null.
             }
         }
         return null

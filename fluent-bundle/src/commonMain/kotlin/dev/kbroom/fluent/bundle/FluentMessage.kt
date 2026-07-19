@@ -15,6 +15,17 @@ class FluentMessage(private val message: Entry.Message) {
 
     fun attributes(): List<Attribute> = message.attributes
 
+    /**
+     * Attribute names keyed by their raw [Pattern]. Corresponds to the
+     * "names and resolved values" view used by tooling that just wants a
+     * catalog (insertion order preserved, matching the AST).
+     *
+     * If you need a formatted string per attribute, call
+     * `bundle.formatPattern(pattern, args)` against the returned values.
+     */
+    fun attributesMap(): Map<String, Pattern> =
+        message.attributes.associate { it.id.name to it.value }
+
     fun getAttribute(name: String): Attribute? = message.attributes.find { it.id.name == name }
 
     /**
@@ -39,6 +50,12 @@ class FluentTerm(private val term: Entry.Term) {
     fun value(): Pattern = term.value
 
     fun attributes(): List<Attribute> = term.attributes
+
+    /**
+     * Attribute names keyed by their raw [Pattern] (insertion order preserved).
+     */
+    fun attributesMap(): Map<String, Pattern> =
+        term.attributes.associate { it.id.name to it.value }
 
     fun getAttribute(name: String): Attribute? = term.attributes.find { it.id.name == name }
 

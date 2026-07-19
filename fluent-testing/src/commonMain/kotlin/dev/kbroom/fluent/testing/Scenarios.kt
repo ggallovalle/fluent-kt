@@ -3,6 +3,7 @@ package dev.kbroom.fluent.testing
 import dev.kbroom.fluent.bundle.FluentArgs
 import dev.kbroom.fluent.bundle.FluentBundle
 import dev.kbroom.fluent.bundle.FluentResource
+import dev.kbroom.fluent.bundle.fluentBundle
 import dev.kbroom.fluent.intl.LanguageIdentifier
 
 /**
@@ -196,14 +197,14 @@ private fun runLocaleScenario(
 }
 
 private fun buildBundleForScenario(scenario: Scenario, locale: LanguageIdentifier): FluentBundle {
-    val bundle = FluentBundle(listOf(locale))
     val ftl = scenario.resources[locale.toTag()].orEmpty()
-    if (ftl.isNotEmpty()) {
-        val resource = FluentResource.tryNew(ftl).getOrNull()
-        if (resource != null) bundle.addResource(resource)
+    return fluentBundle(listOf(locale)) {
+        if (ftl.isNotEmpty()) {
+            val resource = FluentResource.tryNew(ftl).getOrNull()
+            if (resource != null) addResourceOverriding(resource)
+        }
+        addBuiltins()
     }
-    bundle.addBuiltins()
-    return bundle
 }
 
 private fun runQuery(bundle: FluentBundle, query: Query): QueryResult {

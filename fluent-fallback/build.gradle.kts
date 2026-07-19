@@ -13,6 +13,7 @@ kotlin {
             implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
             implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.8.0")
             implementation(project(":fluent-bundle"))
+            implementation(project(":fluent-syntax"))
             implementation(project(":intl-memoizer"))
         }
         commonTest.dependencies {

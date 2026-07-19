@@ -91,4 +91,25 @@ val PseudoLocaleTest by testSuite {
         val out = PseudoLocale.bidi().transform("hello")
         assertEquals("\u202Bhello\u202C", out)
     }
+
+    test("Long mode pads with filler to ~130% length") {
+        val out = PseudoLocale.long().transform("hello")
+        // "hello" is 5 chars; 5 * 1.3 = 6.5 → 6 chars after padding with 1 "[!]"
+        assertTrue(out.startsWith("hello"))
+        assertEquals(8, out.length, "expected 8 chars (5 + 1 '[!]' = 8); got: $out")
+    }
+
+    test("Long mode preserves original characters") {
+        // "abc" * 1.3 = 3.9 → 3 chars (no padding); use a longer string for fillChar test.
+        val out = PseudoLocale.long(fillChar = ".").transform("abcdefgh")
+        // 8 * 1.3 = 10.4 → 10 chars; needs 2 filler dots
+        assertEquals(10, out.length, "expected 10 chars; got: $out")
+        assertTrue(out.startsWith("abcdefgh"))
+        assertTrue(out.endsWith(".."))
+    }
+
+    test("Long mode is a no-op when factor <= 1") {
+        val out = PseudoLocale.long(factor = 0.5).transform("hello")
+        assertEquals("hello", out)
+    }
 }

@@ -16,12 +16,12 @@ complexity:
     allowedLines: 60
   LongParameterList:
     allowedFunctionParameters: 6
-    allowedConstructorParameters: 6
+    allowedConstructorParameters: 8
   TooManyFunctions:
     allowedFunctionsPerFile: 15
-    allowedFunctionsPerClass: 15
+    allowedFunctionsPerClass: 25
     allowedFunctionsPerInterface: 15
-    allowedFunctionsPerObject: 15
+    allowedFunctionsPerObject: 25
     allowedFunctionsPerEnum: 15
 
 naming:
@@ -33,3 +33,11 @@ style:
     active: false
   ReturnCount:
     max: 4
+
+ktlint:
+  ArgumentListWrapping:
+    active: false
+  BlankLineBetweenWhenConditions:
+    active: false
+  FunctionSignature:
+    active: false

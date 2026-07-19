@@ -101,15 +101,39 @@ actual object PlatformIntl {
         style: String,
         hour12: Boolean?,
         timeZone: String?,
-    ): String? = formatDateTime(
-        value,
-        locale,
-        memoizer,
-        dateStyle = null,
-        timeStyle = style,
-        hour12 = hour12,
-        timeZone = timeZone,
-    )
+    ): String? {
+        val (hh, minute, second) = hmsParts(value)
+        val hhStr = pad2(to12Hour(hh, hour12))
+        val mmStr = pad2(minute)
+        val ssStr = pad2(second)
+        val ampm = ampmSuffix(hh, hour12)
+        return "$hhStr:$mmStr:$ssStr$ampm"
+    }
+
+    private fun hmsParts(value: Long): Triple<Int, Int, Int> {
+        val totalSeconds = value / 1000
+        val secondsOfDay = ((totalSeconds % 86400) + 86400) % 86400
+        val hour = (secondsOfDay / 3600).toInt()
+        val minute = ((secondsOfDay % 3600) / 60).toInt()
+        val second = (secondsOfDay % 60).toInt()
+        return Triple(hour, minute, second)
+    }
+
+    private fun to12Hour(hour: Int, hour12: Boolean?): Int {
+        if (hour12 != true) return hour
+        return when (hour) {
+            0 -> 12
+            in 1..12 -> hour
+            else -> hour - 12
+        }
+    }
+
+    private fun ampmSuffix(hour: Int, hour12: Boolean?): String {
+        if (hour12 != true) return ""
+        return if (hour < 12) " AM" else " PM"
+    }
+
+    private fun pad2(n: Int): String = if (n < 10) "0$n" else n.toString()
 
     actual fun formatList(
         values: List<String>,
@@ -142,6 +166,20 @@ actual object PlatformIntl {
             "ru", "pl", "uk" -> pluralCategorySlavic(value)
             "ar" -> pluralCategoryArabic(value)
             else -> pluralCategoryOneOther(value)
+        }
+    }
+
+    actual fun getOrdinalPluralCategory(value: Double, locale: LanguageIdentifier, memoizer: IntlLangMemoizer): String {
+        // English ordinals: 1st -> "one", 2nd -> "two", 3rd -> "few", everything else -> "other".
+        // Other languages: fall back to "other" until we wire CLDR per-locale rules.
+        return when (locale.language) {
+            "en" -> when (value.toLong()) {
+                1L -> "one"
+                2L -> "two"
+                3L -> "few"
+                else -> "other"
+            }
+            else -> "other"
         }
     }
 

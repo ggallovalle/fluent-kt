@@ -2,6 +2,18 @@ package dev.kbroom.fluent.pseudo
 
 /**
  * Pseudolocalization modes.
+ *
+ * Coverage vs. fluent-rs's `fluent-pseudo` crate:
+ * - `Accented`: matches `Accent` (accented equivalents).
+ * - `Bidi`: matches `Bidi` behavior — wraps the string in RLE/PDF marks
+ *   so the surrounding text engine treats it as RTL. Does NOT mirror
+ *   individual characters.
+ * - `Widened`: pseudo-kt specific — expands glyphs with diacritics.
+ * - `Hidden`: pseudo-kt specific — wraps each letter in `[x]` to make
+ *   hard-coded strings visible during testing.
+ * - `Long`: matches `Long` — pads with a fill character (default `[!]`)
+ *   by a configurable factor to test UI length handling without
+ *   changing glyphs.
  */
 enum class PseudoMode {
     /**
@@ -11,12 +23,13 @@ enum class PseudoMode {
     Accented,
 
     /**
-     * Bidi: emulates right-to-left text direction.
+     * Bidi: wraps the input in U+202B RLE / U+202C PDF so the surrounding
+     * text engine treats it as RTL. Does not mirror individual characters.
      */
     Bidi,
 
     /**
-     * Widened: expands text to test UI layout.
+     * Widened: expands text with diacritic-marked glyphs to test UI layout.
      */
     Widened,
 
@@ -24,15 +37,30 @@ enum class PseudoMode {
      * Hidden: replaces characters with [x] to find hardcoded strings.
      */
     Hidden,
+
+    /**
+     * Long: pads the input with a filler character (default `[!]`) by a
+     * configurable factor (default 1.3) to test UI length handling.
+     * Matches fluent-rs's `Long` mode.
+     */
+    Long,
 }
 
 /**
  * Options for pseudolocalization.
+ *
+ * @property mode Which pseudolocalization transform to apply.
+ * @property skipHtmlEntities Skip text after an `&` (avoid mangling `&amp;` etc.).
+ * @property skipPlaceables Skip text inside `{...}` placeables.
+ * @property longFillChar Filler character (or short string) for `Long` mode.
+ * @property longFactor Length multiplier for `Long` mode (1.3 ≈ 30% longer).
  */
 data class PseudoOptions(
     val mode: PseudoMode = PseudoMode.Accented,
     val skipHtmlEntities: Boolean = true,
     val skipPlaceables: Boolean = true,
+    val longFillChar: String = "[!]",
+    val longFactor: Double = 1.3,
 )
 
 /**
@@ -72,6 +100,7 @@ class PseudoLocale(private val options: PseudoOptions = PseudoOptions()) {
         PseudoMode.Bidi -> transformBidi(input)
         PseudoMode.Widened -> transformWidened(input)
         PseudoMode.Hidden -> transformHidden(input)
+        PseudoMode.Long -> transformLong(input)
     }
 
     /**
@@ -130,6 +159,20 @@ class PseudoLocale(private val options: PseudoOptions = PseudoOptions()) {
     private fun transformHidden(input: String): String =
         transformChars(input) { ch -> if (ch.isLetter()) "[$ch]" else ch.toString() }
 
+    /**
+     * Transform by padding the string with [options.longFillChar] so the
+     * final length is at least `input.length * longFactor`. The original
+     * characters are preserved; only extra filler is appended.
+     */
+    private fun transformLong(input: String): String {
+        val target = (input.length * options.longFactor).toInt()
+        if (target <= input.length) return input
+        val needed = target - input.length
+        val sb = StringBuilder(input)
+        repeat(needed) { sb.append(options.longFillChar) }
+        return sb.toString()
+    }
+
     companion object {
         /**
          * Create a default accented pseudolocalizer.
@@ -150,6 +193,12 @@ class PseudoLocale(private val options: PseudoOptions = PseudoOptions()) {
          * Create a hidden pseudolocalizer.
          */
         fun hidden(): PseudoLocale = PseudoLocale(PseudoOptions(mode = PseudoMode.Hidden))
+
+        /**
+         * Create a long pseudolocalizer with the given fill character and length factor.
+         */
+        fun long(fillChar: String = "[!]", factor: Double = 1.3): PseudoLocale =
+            PseudoLocale(PseudoOptions(mode = PseudoMode.Long, longFillChar = fillChar, longFactor = factor))
     }
 }
 

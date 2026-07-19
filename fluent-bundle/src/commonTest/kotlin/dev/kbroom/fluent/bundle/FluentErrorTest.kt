@@ -10,33 +10,38 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * Tests for [FluentError] — the error type the bundle collects while
- * formatting. Coverage targets each kind and the collection path through
+ * Tests for FluentError variants. Exercises both the bundle-layer errors
+ * produced by [FluentBundle.addResource] / `addResourceOverriding` and the
+ * errors propagated by the resolver during
  * [FluentBundle.formatPattern] / [FluentBundle.formatMessage].
  */
 val FluentErrorTest by testSuite {
 
     test("Overriding reports same-id resource on addResource") {
-        val bundle = FluentBundle(listOf(LanguageIdentifier.parse("en")))
-        bundle.addResource(FluentResource.tryNew("greeting = Hello").getOrThrow())
+        val firstResource = FluentResource.tryNew("greeting = Hello").getOrThrow()
         val second = FluentResource.tryNew("greeting = Hi").getOrThrow()
-        val result = bundle.addResource(second)
+
+        val builder = FluentBundleBuilder.builder(listOf(LanguageIdentifier.parse("en")))
+        builder.addResource(firstResource)
+        val result = builder.addResource(second)
         // addResource returns failures when an id is overridden
         assertTrue(result.isFailure, "expected addResource to fail on duplicate id")
         assertNotNull(result.exceptionOrNull())
     }
 
     test("formatMessage returns null for unknown message id") {
-        val bundle = FluentBundle(listOf(LanguageIdentifier.parse("en")))
-        bundle.addResource(FluentResource.tryNew("greet = Hi").getOrThrow())
+        val bundle = fluentBundle(listOf(LanguageIdentifier.parse("en"))) {
+            addResource(FluentResource.tryNew("greet = Hi").getOrThrow())
+        }
         val result = bundle.format("missing")
         assertNull(result, "expected null for missing message id")
         assertEquals(false, bundle.hasMessage("missing"))
     }
 
     test("formatPattern collects a ResolverError.Reference on unknown message ref") {
-        val bundle = FluentBundle(listOf(LanguageIdentifier.parse("en")))
-        bundle.addResource(FluentResource.tryNew("greet = Hi { missing }").getOrThrow())
+        val bundle = fluentBundle(listOf(LanguageIdentifier.parse("en"))) {
+            addResource(FluentResource.tryNew("greet = Hi { missing }").getOrThrow())
+        }
         val message = bundle.getMessage("greet")
         assertNotNull(message)
         val pattern = message.value()

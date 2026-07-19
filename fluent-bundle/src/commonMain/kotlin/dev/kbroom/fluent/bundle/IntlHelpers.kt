@@ -83,6 +83,13 @@ object IntlHelpers {
      */
     fun getPluralCategory(value: Double, locale: LanguageIdentifier, memoizer: IntlLangMemoizer): String =
         PlatformIntl.getPluralCategory(value, locale, memoizer)
+
+    /**
+     * Get ordinal plural category (e.g. "one" for 1st, "two" for 2nd,
+     * "few" for 3rd, "other" otherwise) for a number in a given locale.
+     */
+    fun getOrdinalPluralCategory(value: Double, locale: LanguageIdentifier, memoizer: IntlLangMemoizer): String =
+        PlatformIntl.getOrdinalPluralCategory(value, locale, memoizer)
 }
 
 /**
@@ -138,4 +145,6 @@ expect object PlatformIntl {
     ): String?
 
     fun getPluralCategory(value: Double, locale: LanguageIdentifier, memoizer: IntlLangMemoizer): String
+
+    fun getOrdinalPluralCategory(value: Double, locale: LanguageIdentifier, memoizer: IntlLangMemoizer): String
 }

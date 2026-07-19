@@ -11,9 +11,10 @@ import kotlin.test.assertTrue
 val FunctionTest by testSuite {
 
     test("number function basic") {
-        val bundle = FluentBundle(listOf(LanguageIdentifier.parse("en")))
-        bundle.addResource(FluentResource.tryNew("price = The price is { NUMBER(\$amount) }").getOrThrow())
-        bundle.addBuiltins()
+        val bundle = fluentBundle(listOf(LanguageIdentifier.parse("en"))) {
+            addResource(FluentResource.tryNew("price = The price is { NUMBER(\$amount) }").getOrThrow())
+            addBuiltins()
+        }
 
         val args = FluentArgs()
         args.set("amount", 19.99)
@@ -22,9 +23,10 @@ val FunctionTest by testSuite {
     }
 
     test("plural function") {
-        val bundle = FluentBundle(listOf(LanguageIdentifier.parse("en")))
-        bundle.addResource(FluentResource.tryNew("test = { PLURAL(\$num) }").getOrThrow())
-        bundle.addBuiltins()
+        val bundle = fluentBundle(listOf(LanguageIdentifier.parse("en"))) {
+            addResource(FluentResource.tryNew("test = { PLURAL(\$num) }").getOrThrow())
+            addBuiltins()
+        }
 
         val args1 = FluentArgs()
         args1.set("num", 0)
@@ -38,11 +40,11 @@ val FunctionTest by testSuite {
     }
 
     test("custom function") {
-        val bundle = FluentBundle(listOf(LanguageIdentifier.parse("en")))
-        bundle.addResource(FluentResource.tryNew("greeting = { HELLO(\$name) }").getOrThrow())
-
-        bundle.addFunction("HELLO") { args, _ ->
-            FluentValue.Str("Hello, ${args.firstOrNull()?.asString()}!")
+        val bundle = fluentBundle(listOf(LanguageIdentifier.parse("en"))) {
+            addResource(FluentResource.tryNew("greeting = { HELLO(\$name) }").getOrThrow())
+            addFunction("HELLO") { args, _ ->
+                FluentValue.Str("Hello, ${args.firstOrNull()?.asString()}!")
+            }
         }
 
         val args = FluentArgs()

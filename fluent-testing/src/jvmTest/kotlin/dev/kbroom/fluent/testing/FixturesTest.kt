@@ -1,8 +1,8 @@
 package dev.kbroom.fluent.testing
 
 import de.infix.testBalloon.framework.core.testSuite
-import dev.kbroom.fluent.bundle.FluentBundle
 import dev.kbroom.fluent.bundle.FluentResource
+import dev.kbroom.fluent.bundle.fluentBundle
 import dev.kbroom.fluent.fallback.ResourceId
 import dev.kbroom.fluent.intl.LanguageIdentifier
 import dev.kbroom.fluent.resmgr.ResourceManager
@@ -24,53 +24,55 @@ val FixturesTest by testSuite {
     }
 
     test("browser en-US") {
-        val bundle = FluentBundle(listOf(LanguageIdentifier.parse("en-US")))
         val resource = assertNotNull(
             loadResource("en-US/browser/browser"),
             "Should load en-US/browser/browser.ftl",
         )
-        bundle.addResource(resource)
-        bundle.addBuiltins()
+        val bundle = fluentBundle(listOf(LanguageIdentifier.parse("en-US"))) {
+            addResource(resource)
+            addBuiltins()
+        }
 
         val result = bundle.format("browser-main-window-title", null)
         assertNotNull(result, "Should find browser-main-window-title")
     }
 
     test("browser Polish") {
-        val bundle = FluentBundle(listOf(LanguageIdentifier.parse("pl")))
         val resource = assertNotNull(
             loadResource("pl/browser/browser"),
             "Should load pl/browser/browser.ftl",
         )
-        bundle.addResource(resource)
-        bundle.addBuiltins()
+        val bundle = fluentBundle(listOf(LanguageIdentifier.parse("pl"))) {
+            addResource(resource)
+            addBuiltins()
+        }
 
         val result = bundle.format("browser-main-window-title", null)
         assertNotNull(result, "Should find browser-main-window-title in Polish")
     }
 
     test("fallback") {
-        val bundle = FluentBundle(
-            listOf(
+        val bundle = fluentBundle(
+            locales = listOf(
                 LanguageIdentifier.parse("pl"),
                 LanguageIdentifier.parse("en-US"),
             ),
-        )
-
-        loadResource("pl/browser/browser")?.let { bundle.addResource(it) }
-        loadResource("en-US/browser/browser")?.let { bundle.addResource(it) }
-        bundle.addBuiltins()
+        ) {
+            loadResource("pl/browser/browser")?.let { addResourceOverriding(it) }
+            loadResource("en-US/browser/browser")?.let { addResourceOverriding(it) }
+            addBuiltins()
+        }
 
         val result = bundle.format("browser-main-window-title", null)
         assertNotNull(result, "Should find browser-main-window-title")
     }
 
     test("multiple resources") {
-        val bundle = FluentBundle(listOf(LanguageIdentifier.parse("en-US")))
-
-        loadResource("en-US/browser/browser")?.let { bundle.addResource(it) }
-        loadResource("en-US/browser/branding/brandings")?.let { bundle.addResource(it) }
-        bundle.addBuiltins()
+        val bundle = fluentBundle(listOf(LanguageIdentifier.parse("en-US"))) {
+            loadResource("en-US/browser/browser")?.let { addResourceOverriding(it) }
+            loadResource("en-US/browser/branding/brandings")?.let { addResourceOverriding(it) }
+            addBuiltins()
+        }
 
         assertTrue(bundle.hasMessage("browser-main-window-title"), "Should have browser-main-window-title")
     }

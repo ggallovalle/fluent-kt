@@ -145,6 +145,20 @@ actual object PlatformIntl {
         }
     }
 
+    actual fun getOrdinalPluralCategory(value: Double, locale: LanguageIdentifier, memoizer: IntlLangMemoizer): String {
+        // English ordinals: 1st -> "one", 2nd -> "two", 3rd -> "few", everything else -> "other".
+        // Other languages: fall back to "other" until we wire CLDR per-locale rules.
+        return when (locale.language) {
+            "en" -> when (value.toLong()) {
+                1L -> "one"
+                2L -> "two"
+                3L -> "few"
+                else -> "other"
+            }
+            else -> "other"
+        }
+    }
+
     private fun pluralCategoryOneOther(value: Double): String = if (value == 1.0) "one" else "other"
 
     private fun pluralCategorySlavic(value: Double): String {

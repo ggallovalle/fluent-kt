@@ -71,8 +71,9 @@ val TypesTest by testSuite {
     }
 
     test("optional value present") {
-        val bundle = FluentBundle(listOf(LanguageIdentifier.parse("en")))
-        bundle.addResource(FluentResource.tryNew("hello = Hello World").getOrThrow())
+        val bundle = fluentBundle(listOf(LanguageIdentifier.parse("en"))) {
+            addResource(FluentResource.tryNew("hello = Hello World").getOrThrow())
+        }
 
         val message = bundle.getMessage("hello")
         assertTrue(message != null)
