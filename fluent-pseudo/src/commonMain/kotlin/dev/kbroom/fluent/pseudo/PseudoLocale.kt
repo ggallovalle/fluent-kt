@@ -75,131 +75,60 @@ class PseudoLocale(private val options: PseudoOptions = PseudoOptions()) {
     }
 
     /**
-     * Transform with accented characters.
+     * Apply [transformChar] to every text character in [input], preserving
+     * placeables ({...}) and HTML entities (&...) unchanged based on
+     * [options]. Used by [transformAccented], [transformWidened], and
+     * [transformHidden] to share the skip-placeables/skip-entities logic.
      */
-    private fun transformAccented(input: String): String {
+    private fun transformChars(input: String, transformChar: (Char) -> CharSequence): String {
         val sb = StringBuilder()
-        var inPlaceholder = false
-
-        for (char in input) {
-            // Handle placeables
-            if (options.skipPlaceables) {
-                if (char == '{') {
-                    inPlaceholder = true
-                    sb.append(char)
-                    continue
+        var i = 0
+        while (i < input.length) {
+            val ch = input[i]
+            when {
+                options.skipPlaceables && ch == '{' -> {
+                    val placeholderEnd = input.indexOf('}', i)
+                    val end = if (placeholderEnd < 0) input.length else placeholderEnd + 1
+                    sb.append(input, i, end)
+                    i = end
                 }
-                if (char == '}') {
-                    inPlaceholder = false
-                    sb.append(char)
-                    continue
-                }
-                if (inPlaceholder) {
-                    sb.append(char)
-                    continue
-                }
-            }
 
-            // Skip HTML entities
-            if (options.skipHtmlEntities && char == '&') {
-                sb.append(char)
-                continue
-            }
+                options.skipHtmlEntities && ch == '&' -> {
+                    sb.append(ch)
+                    i++
+                }
 
-            // Transform letters
-            val transformed = accentMap[char]
-            if (transformed != null) {
-                sb.append(transformed)
-            } else {
-                sb.append(char)
+                else -> {
+                    sb.append(transformChar(ch))
+                    i++
+                }
             }
         }
-
         return sb.toString()
     }
+
+    /**
+     * Transform with accented characters.
+     */
+    private fun transformAccented(input: String): String =
+        transformChars(input) { ch -> accentMap[ch]?.toString() ?: ch.toString() }
 
     /**
      * Transform with bidi marks for RTL testing.
      */
-    private fun transformBidi(input: String): String {
-        // Add Unicode RTL marks
-        return "\u202B$input\u202C"
-    }
+    private fun transformBidi(input: String): String = "\u202B$input\u202C"
 
     /**
      * Transform with widened characters (adds diacritics that widen text).
      */
-    private fun transformWidened(input: String): String {
-        val sb = StringBuilder()
-        var inPlaceholder = false
-
-        for (char in input) {
-            // Handle placeables
-            if (options.skipPlaceables) {
-                if (char == '{') {
-                    inPlaceholder = true
-                    sb.append(char)
-                    continue
-                }
-                if (char == '}') {
-                    inPlaceholder = false
-                    sb.append(char)
-                    continue
-                }
-                if (inPlaceholder) {
-                    sb.append(char)
-                    continue
-                }
-            }
-
-            // Transform letters
-            val transformed = widenedMap[char]
-            if (transformed != null) {
-                sb.append(transformed)
-            } else {
-                sb.append(char)
-            }
-        }
-
-        return sb.toString()
-    }
+    private fun transformWidened(input: String): String =
+        transformChars(input) { ch -> widenedMap[ch]?.toString() ?: ch.toString() }
 
     /**
      * Transform with hidden characters (for finding hardcoded strings).
      */
-    private fun transformHidden(input: String): String {
-        val sb = StringBuilder()
-        var inPlaceholder = false
-
-        for (char in input) {
-            // Handle placeables
-            if (options.skipPlaceables) {
-                if (char == '{') {
-                    inPlaceholder = true
-                    sb.append(char)
-                    continue
-                }
-                if (char == '}') {
-                    inPlaceholder = false
-                    sb.append(char)
-                    continue
-                }
-                if (inPlaceholder) {
-                    sb.append(char)
-                    continue
-                }
-            }
-
-            // Transform letters to [x] form
-            if (char.isLetter()) {
-                sb.append('[').append(char).append(']')
-            } else {
-                sb.append(char)
-            }
-        }
-
-        return sb.toString()
-    }
+    private fun transformHidden(input: String): String =
+        transformChars(input) { ch -> if (ch.isLetter()) "[$ch]" else ch.toString() }
 
     companion object {
         /**
