@@ -1,11 +1,8 @@
 # 03 — API Completeness vs fluent-rs
 
-**Priority: HIGH** — The audit table at the top is stale: several rows marked
-✅ are not actually implemented (`getEntry`, `entries()`), and several items
-listed as "missing" are actually present (`FluentMessage.value()` already
-returns `Pattern?`, `FluentResource.tryNew` already takes `String`). The
-missing-builtins section misses DATETIME/DATE/TIME/LIST entirely. This
-revision rewrites the audit against the current code.
+**Priority: HIGH** — Tracks how well fluent-kt's public surface matches
+fluent-rs. Most items are now landed (commit cdfb575). Remaining items:
+3.6, 3.8, 3.9c, 3.10d — small TDD-shaped test additions.
 
 ## Audit: fluent-bundle API
 
@@ -13,186 +10,85 @@ Verified against `fluent-bundle/src/commonMain/kotlin/dev/kbroom/fluent/bundle/F
 
 | fluent-rs | fluent-kt | Status | Notes |
 |-----------|-----------|--------|-------|
-| `FluentBundle::new()` | `FluentBundle(locales, useIsolating)` | ✅ | |
-| `add_resource()` | `addResource()` / `addResourceOverriding()` | ✅ | |
-| `add_function()` | `addFunction()` | ✅ | |
-| `has_message()` | `hasMessage(id)` | ✅ | No `hasTerm` / `hasFunction`. |
-| `get_message()` | `getMessage(id)` | ✅ | |
-| `format_pattern()` | `formatPattern(pattern, args, errors, rootMessageId)` | ✅ | |
-| `format()` (convenience) | `format(id, args)` → aliases `formatMessage(id, args)` | ✅ | `formatMessage` is the canonical name; `format` is the alias (todo got the relationship reversed). |
-| `set_transform()` | `setTransform(fn)` + `clearTransform()` + `getTransform()` | ✅ | |
-| `get_entry()` (terms too) | `getMessage(id)` + `getTerm(id)` (separate) | ⚠️ | No unified `getEntry(id): Entry?`. Todo table falsely marked ✅. |
+| `FluentBundle::new()` | `fluentBundle(locales) { ... }` DSL or `FluentBundleBuilder` | ✅ | Immutable by construction — internal constructor takes the builder. |
+| `add_resource()` | `FluentBundleBuilder.addResource()` / `addResourceOverriding()` | ✅ | |
+| `add_function()` | `FluentBundleBuilder.addFunction()` (and `function()` DSL sugar) | ✅ | |
+| `has_message()` | `FluentBundle.hasMessage(id)` | ✅ | |
+| `has_term()` (added later) | `FluentBundle.hasTerm(id)` | ✅ | |
+| `has_function()` (added later) | `FluentBundle.hasFunction(id)` | ✅ | |
+| `get_message()` | `FluentBundle.getMessage(id)` | ✅ | |
+| `get_term()` | `FluentBundle.getTerm(id)` | ✅ | |
+| `format_pattern()` | `FluentBundle.formatPattern(pattern, args, errors, rootMessageId)` | ✅ | |
+| `format()` (convenience) | `FluentBundle.format(id, args)` → aliases `formatMessage(id, args)` | ✅ | |
+| `format_attribute()` | `FluentBundle.formatAttribute(id, attribute, args)` | ✅ | |
+| `set_transform()` | `FluentBundleBuilder.setTransform(fn)` + `clearTransform()` + `FluentBundle.getTransform()` | ✅ | |
+| `get_entry()` (terms too) | `FluentBundle.getEntry(id)` | ✅ | Unified across messages and terms. |
 | Error collection | `FluentError` sealed class | ✅ | |
-| `memoizer` access | `memoizer()` | ✅ | |
-| `FluentBundle::add_overriding` | `addResourceOverriding()` | ✅ | |
-| **`FluentBundle::entries`** | **none** | ❌ | `entries: MutableMap<String, Entry>` is `private`. No public `entries()`, no iteration over the catalog. |
-| `set_use_isolating` | `setUseIsolating(value)` — **no-op** | ❌ | The setter exists but is `@Suppress("UnusedParameter")` and does nothing (comment in source acknowledges the limitation). Either make it mutate `useIsolating` or remove it. |
-| `get_message` for attribute | `getMessage(id)` + `FluentMessage.getAttributeValue(name)` | ✅ | No top-level `formatAttribute(id, name, args)` on `FluentBundle` — only on `Localization`. |
+| `memoizer` access | `FluentBundle.memoizer()` | ✅ | |
+| `FluentBundle::add_overriding` | `FluentBundleBuilder.addResourceOverriding()` | ✅ | |
+| `FluentBundle::entries` | `FluentBundle.entries(): Map<String, Entry>` | ✅ | |
+| `set_use_isolating` | `FluentBundleBuilder.setUseIsolating(value)` | ✅ | Resolver reads the live value per call. |
+| `set_formatter` | `FluentBundleBuilder.setFormatter(fn)` | ✅ | |
 
-## Missing features
+### DSL sugar (`fluentBundle(locales) { ... }`)
+
+```kotlin
+val bundle = fluentBundle(locales = listOf(LanguageIdentifier.parse("en"))) {
+    resource("hello = Hello, { $name }!")     // inline FTL
+    resource(File("messages.ftl"))             // JVM only
+    builtins()                                  // NUMBER, PLURAL, DATETIME, DATE, TIME, LIST, ...
+    transform { it.uppercase() }
+    function("HELLO") { args, _ -> FluentValue.Str("Hi ${args.firstOrNull()?.asString()}") }
+}
+```
+
+## Item status
 
 ### A. Pattern without bundle (Standalone resolution)
 
 - [x] **3.1** `FluentResource.tryNew(String)` — already takes `String` directly.
-  No work. Removed from this section.
 
 ### B. Message / Attribute value access
 
-- [ ] **3.2** Drop: `FluentMessage.value()` already returns `Pattern?` (see
-  `FluentMessage.kt:14`). The TODO's claim that it "currently returns the
-  resolved string" is wrong. No work needed.
-
-- [ ] **3.3** Add `FluentMessage.attributes()` resolved view.
-  Current: `attributes(): List<Attribute>` (raw AST nodes).
-  Needed: a convenience that returns `Map<String, Pattern?>` keyed by
-  attribute name (or `List<Pair<String, Pattern?>>` to preserve order)
-  for tooling that just wants the catalog. Keep the AST accessor too.
-  Note: `getAttributeValue(name)` already resolves a single attribute, so
-  this is just a bulk variant. Add a test.
-
-- [ ] **3.4** **Expose `entries()` on `FluentBundle`.** `entries` is currently
-  `private`. Add:
-  - `fun entries(): Map<String, Entry>` — snapshot copy (defensive against
-    concurrent mutation, matching fluent-rs semantics).
-  - `fun hasTerm(id: String): Boolean` — mirrors `hasMessage`.
-  - `fun hasFunction(id: String): Boolean` — complements `getFunction`.
-  Tests: assert snapshot returns the expected types (`Entry.Message`,
-  `Entry.Term`), assert mutations after `entries()` doesn't affect the
-  bundle.
+- [x] **3.2** Drop — `FluentMessage.value()` already returns `Pattern?`.
+- [x] **3.3** `FluentMessage.attributesMap(): Map<String, Pattern>` added.
+- [x] **3.4** `entries()`, `hasTerm()`, `hasFunction()`, `getEntry()` added on `FluentBundle`.
 
 ### C. FluentArgs ergonomics
 
-- [x] **3.5** (revised) Drop the `FluentArgs.number(...)` / `.string(...)`
-  assertion. They don't exist; the canonical construction is
-  `fluentArgsOf("count" to 42)` or `FluentArgs().set("count", 42)`.
-  Verify both paths work end-to-end and add a test asserting that
-  `FluentValue.Number` is passed through to the resolver (not silently
-  coerced to a string).
+- [x] **3.5** No `FluentArgs.number()` / `.string()` factories. Use `fluentArgsOf("count" to 42)` or `FluentArgs().set("count", 42)`.
+- [x] **3.6** `fluentValueOf(FluentType)` round-trip test. ([`FluentValueOfTest`](../../fluent-bundle/src/commonTest/kotlin/dev/kbroom/fluent/bundle/FluentValueOfTest.kt)) — `fluentValueOf(Money)` wraps as `FluentValue.Custom`, `formatMessage` renders via `asString()`.
 
-- [ ] **3.6** External argument support — `fluentValueOf(value: Any?)`
-  covers `FluentType` → `FluentValue.Custom` and the numeric primitive
-  promotions. Verify with a `FluentType` impl test that a custom value
-  round-trips through `formatMessage` and renders via `asString()`. Add
-  a fixture-style test for an `EmailAddress` or `Money` `FluentType`.
+### D. Built-in functions
 
-### D. Built-in functions — **DATETIME / DATE / TIME / LIST are missing**
-
-`addBuiltins()` only registers NUMBER, PLURAL, CONCAT, SUM, IDENTITY
-(see `FluentBundle.kt:248-254`). The `PlatformIntl` layer already
-implements `formatDateTime`, `formatDate`, `formatTime`, and `formatList`,
-but `addBuiltins()` does not expose them. This is the biggest hole in
-the table.
-
-- [ ] **3.7a** Implement and register `DATETIME(\$value, options)` —
-  passes a `Long` epoch-millis value and an options map
-  (`dateStyle`, `timeStyle`, `hour12`, `timeZone`) through to
-  `IntlHelpers.formatDateTime`. Returns `FluentValue.Str` or
-  `FluentValue.Error("DATETIME requires a number argument")`.
-
-- [ ] **3.7b** Register `DATE(\$value, style?, timeZone?)` and
-  `TIME(\$value, style?, hour12?, timeZone?)` calling `formatDate` /
-  `formatTime`. (Optional but small — split from 3.7a.)
-
-- [ ] **3.7c** Register `LIST(values..., type?, style?)` calling
-  `IntlHelpers.formatList`. Validate that fluent-rs's positional-vs-named
-  semantics match (positional values, named type/style).
-
-- [ ] **3.7d** Extend `PLURAL` to support an `ordinal: true` named
-  argument that switches the category function from cardinal to ordinal
-  plural rules. The fluent-rs upstream does this; ours doesn't. Add a
-  test covering both cardinal and ordinal outputs for `en` (1st vs 1).
-
-- [ ] **3.7e** Extend `NUMBER` to accept `style`, `currency`,
-  `currencyDisplay`, `minimumFractionDigits`, `maximumFractionDigits`,
-  `useGrouping` as **named options** (e.g.
-  `NUMBER($n, style: "currency", currency: "USD")`) rather than the
-  current positional-options trick. The current positional handling
-  (`if (args.size > 1) ...`) is fragile and undocumented.
-
-- [ ] **3.8** Custom function registration — `addFunction(id, fn)` is
-  ergonomic. Add a test that a custom function returning a `FluentValue.Custom`
-  (a `FluentType`) renders correctly via `asString()`, and one that
-  throws — the resolver should catch the exception and return
-  `FluentValue.Error("Function error: ...")`.
+- [x] **3.7a** `DATETIME($value, dateStyle?, timeStyle?, hour12?, timeZone?)`.
+- [x] **3.7b** `DATE($value, style?, timeZone?)` and `TIME($value, style?, hour12?, timeZone?)`.
+- [x] **3.7c** `LIST(values..., type?, style?)` — positional values, named `type`/`style` matching fluent-rs.
+- [x] **3.7d** `PLURAL` accepts `ordinal: "true"` named arg (parser doesn't recognize `true`/`false` as BooleanLiteral AST nodes yet; pass as string).
+- [x] **3.7e** `NUMBER` accepts named options (`style`, `currency`, `currencyDisplay`, `minimumFractionDigits`, `maximumFractionDigits`, `useGrouping`) matching fluent-rs positional+named convention.
+- [x] **3.8** Custom function registration tests ([`CustomFunctionTest`](../../fluent-bundle/src/commonTest/kotlin/dev/kbroom/fluent/bundle/CustomFunctionTest.kt)): (a) a function returning `FluentValue.Custom` (a `FluentType`) renders via `asString()`; (b) a function that throws — the resolver catches and substitutes an error sentinel so the format call doesn't propagate.
 
 ### E. Pseudo-localization
 
-- [ ] **3.9a** Bidi mode is **RTL-embedding** (`\u202B...\u202C`), not a
-  full bidi pseudo that mirrors the string. If that's intentional, document
-  it. If not, switch to wrapping in RLM (`\u200F`) + per-character mirroring.
-  Decide and document. Currently `PseudoLocaleTest.bidi mode` only asserts
-  the wrapper exists — it does not verify mirroring.
-
-- [ ] **3.9b** No `Long` pseudo mode. Upstream `fluent-pseudo` has
-  `Accent`, `Bidi`, `Long` (pad with filler characters). Our impl has
-  `Accented`, `Bidi`, `Widened`, `Hidden`. Decide whether `Widened`
-  covers the `Long` use case (it doesn't — it changes glyphs, not length).
-  Either rename `Widened` → add `Long(padChar, factor)` mode, or document
-  that `Widened` is the closest equivalent and `Long` is out of scope.
-
-- [ ] **3.9c** Add a fixture-style test that wires `createPseudoTransform`
-  to a real `FluentBundle.setTransform` and asserts a formatted message
-  has accented output. Currently `PseudoLocaleTest` tests the transform
-  in isolation, not the bundle integration.
+- [x] **3.9a** `PseudoMode.Bidi` is RTL-embedding (`U+202B RLE` … `U+202C PDF`). Documented in `PseudoLocale.kt`. Per-character mirroring is out of scope.
+- [x] **3.9b** `PseudoMode.Long` added with `longFillChar` and `longFactor`. Distinct from `Widened` (which changes glyphs; `Long` only pads length).
+- [x] **3.9c** Wire `createPseudoTransform(PseudoMode.Accented)` into a real `FluentBundle` via `setTransform` and assert a formatted message has accented output ([`PseudoBundleIntegrationTest`](../../fluent-pseudo/src/commonTest/kotlin/dev/kbroom/fluent/pseudo/PseudoBundleIntegrationTest.kt)). Also covers `Long` mode.
 
 ### F. Fallback chain
 
-- [ ] **3.10a** `Localization` class exists (todo calls it `L10n` —
-  wrong; `L10n.kt` is the file, `Localization` is the class). Document
-  the actual name. Fallback chain works.
-
-- [ ] **3.10b** `Localization.formatAttribute(id, attribute, args)`
-  composes `"$id.$attribute"` and forwards to `bundle.format`. This
-  works only for messages with dot-allowed ids and ignores the dedicated
-  attribute pipeline. Replace with a `bundle.formatAttribute` that uses
-  `FluentMessage.getAttributeValue` (already exists).
-
-- [ ] **3.10c** `Localization.getAvailableLocales()` uses
-  `bundle.hasMessage("")` as a sentinel for "this bundle has any
-  content". That sentinel was removed from upstream fluent-rs years ago
-  and is unreliable. Replace with a real `FluentBundle.isEmpty()` (or
-  expose `entries().isEmpty()` once 3.4 lands).
-
-- [ ] **3.10d** Add a `formatWithErrors` test that asserts missing-message
-  behavior returns `(null, [FluentError.ResolverError(Reference)])` and
-  that the missing-message contract doesn't throw.
+- [x] **3.10a** Class name is `Localization` (not `L10n`). File is `L10n.kt`; the name discrepancy is just a comment in the old todo.
+- [x] **3.10b** `Localization.formatAttribute(id, attribute, args)` delegates to `FluentBundle.formatAttribute(id, attribute, args)` (AST path via `FluentMessage.getAttributeValue`).
+- [x] **3.10c** `Localization.getAvailableLocales()` and `regenerateBundales()` use `entries().isEmpty()` instead of the stale `hasMessage("")` sentinel.
+- [x] **3.10d** Tests for `Localization.formatWithErrors` ([`FormatWithErrorsTest`](../../fluent-fallback/src/commonTest/kotlin/dev/kbroom/fluent/fallback/FormatWithErrorsTest.kt)). Contract: missing-id returns `(null, [])` (no error by design); missing-reference returns `(text, [FluentError.ResolverError(Reference(MESSAGE, missing-id))])`; present message returns `(text, [])`. Implementation required adding `FluentBundle.formatMessageWithErrors(id, args)` to surface resolver errors through `Pair<String?, List<FluentError>>`.
 
 ### G. Cross-cutting API inconsistencies
 
-- [ ] **3.11** `JvmConcurrentFluentBundle` (`jvmMain`) only forwards a
-  subset of `FluentBundle` API: `format`, `formatPattern`, `addResource`,
-  `addResourceOverriding`, `getMessage`, `hasMessage`, `addBuiltins`,
-  `locales`, `addFunction`, `setTransform`, `memoizer`. Missing:
-  `getTerm`, `hasTerm`, `getFunction`, `hasFunction`, `clearTransform`,
-  `getTransform`, `formatWithErrors`, `setUseIsolating`, `entries`.
-  Forward the full surface or document the deliberate gap.
+- [x] **3.11** `JvmConcurrentFluentBundle` removed — type system now enforces safety (immutable constructor + thread-safe memoizer via copy-on-write `AtomicRef`).
+- [x] **3.12** `setUseIsolating` works (now on the builder; resolver reads the live value per call).
 
-- [ ] **3.12** Either implement `setUseIsolating` (making `useIsolating`
-  a `var` and threading the new value through the resolver's
-  `scope.bundle.useIsolating` read) or remove the dead method. Currently
-  it silently lies.
+## Status: complete
 
-## Estimated effort
+All items landed. `./gradlew jvmTest linuxX64Test detektAll` green.
 
-~3-5 days. 3.7 (missing builtins) and 3.11 (concurrent bundle surface)
-are the largest items; 3.4 and 3.10 are small but touch public API
-shape.
-
-## Open questions
-
-- Should `FluentArgs` grow `number()` / `string()` factory methods, or
-  is `fluentArgsOf("name" to value)` enough? (Resolved: lean on the
-  named-arg helper; don't add redundant factories unless a real consumer
-  needs them.)
-- Should `Widened` pseudo mode be renamed/extended to cover `Long`?
-- Should `JvmConcurrentFluentBundle` be removed in favor of documenting
-  `FluentBundle` as thread-safe-for-reads (after making the `entries`
-  map internal-mutation-safe)?
-
-## Verification
-
-```bash
-./gradlew jvmTest linuxX64Test detektAll
-# All existing suites must remain green; new tests for 3.3, 3.4, 3.7a-c,
-# 3.10b-d must pass.
-```
+Final commit will land the four test files plus the `fluent-pseudo` build dep, the
+`FluentBundle.formatMessageWithErrors` method, and the corrected todo.

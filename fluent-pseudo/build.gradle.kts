@@ -12,9 +12,11 @@ kotlin {
         commonMain.dependencies {
             implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
             implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.8.0")
+            implementation(project(":fluent-bundle"))
         }
         commonTest.dependencies {
             implementation(kotlin("test"))
+            implementation(project(":intl-memoizer"))
             implementation("de.infix.testBalloon:testBalloon-framework-core:1.0.1-K2.4.0")
         }
     }

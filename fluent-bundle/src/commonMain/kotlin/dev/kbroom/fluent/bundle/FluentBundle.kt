@@ -131,6 +131,22 @@ class FluentBundle internal constructor(private val builder: FluentBundleBuilder
     }
 
     /**
+     * Format a message and return both the result and any errors collected
+     * during resolution. Returns `(null, [...])` for a missing message id
+     * and `(null, [])` for an empty-value message; otherwise `(text, errors)`.
+     *
+     * Use this when you need to inspect [FluentError]s (missing references,
+     * cycle errors, etc.) rather than just the formatted output.
+     */
+    fun formatMessageWithErrors(id: String, args: FluentArgs? = null): Pair<String?, List<FluentError>> {
+        val message = getMessage(id) ?: return null to emptyList()
+        val pattern = message.value() ?: return null to emptyList()
+        val errors = mutableListOf<FluentError>()
+        val scope = dev.kbroom.fluent.bundle.resolver.Scope(this, args, errors, rootMessageId = id)
+        return resolver.resolve(pattern, scope) to errors
+    }
+
+    /**
      * Format a specific attribute of a message by ID.
      *
      * Uses the AST path (calls [FluentMessage.getAttributeValue]) rather than

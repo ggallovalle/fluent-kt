@@ -157,13 +157,16 @@ open class Localization<G, P, A>(
 
     /**
      * Format a message synchronously with full control.
+     *
+     * Walks the fallback chain and returns the first successful result.
+     * Errors collected across every bundle's resolve pass are aggregated
+     * in the second tuple element.
      */
     fun formatWithErrors(id: String, args: FluentArgs? = null): Pair<String?, List<FluentError>> {
         val allErrors = mutableListOf<FluentError>()
 
         for (bundle in currentBundles) {
-            val errors = mutableListOf<FluentError>()
-            val result = bundle.formatMessage(id, args)
+            val (result, errors) = bundle.formatMessageWithErrors(id, args)
             if (result != null) {
                 return Pair(result, allErrors + errors)
             }
