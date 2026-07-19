@@ -58,9 +58,13 @@ publishing is deferred until we're ready to cut a release.
 - [x] **5.5** Release publishing: ready. Tag `v0.1.0` (or any `v*`) on
   the commit you want to release; the workflow publishes the matching
   artifact to Maven Central and creates a GitHub Release. CI secrets
-  needed: `MAVEN_CENTRAL_USERNAME`, `MAVEN_CENTRAL_PASSWORD`,
-  `GPG_PRIVATE_KEY`, `GPG_PASSPHRASE` (set at
+  needed (your naming, kept human-readable): `MAVEN_CENTRAL_USERNAME`,
+  `MAVEN_CENTRAL_PASSWORD`, `GPG_PRIVATE_KEY`, `GPG_PASSPHRASE`
+  (set at
   <https://github.com/ggallovalle/fluent-kt/settings/secrets/actions>).
+  The workflow maps these to the vanniktech plugin's required names
+  (`ORG_GRADLE_PROJECT_mavenCentralUsername` etc.) so the secrets
+  themselves don't need to match the plugin's naming.
 
 ### B. KMP target matrix
 

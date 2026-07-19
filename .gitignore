@@ -3,7 +3,7 @@
 build/
 out/
 gradle/wrapper/*.jar
-!gradle/wrapper/gradle-wrapper.properties
+gradle-wrapper.jar
 local.properties
 
 # IDE

@@ -53,16 +53,17 @@ jobs:
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "Publishing version: ${VERSION}"
 
-      # The vanniktech plugin's signAllPublications() reads the GPG key
-      # directly from the GPG_PRIVATE_KEY and GPG_PASSPHRASE env vars
-      # — no keyring import needed.
+      # The vanniktech plugin reads Gradle project properties via the
+      # ORG_GRADLE_PROJECT_<name> env-var convention. Map our GitHub
+      # Actions secrets (which we want to keep human-readable) into
+      # the plugin's expected names.
       - name: Publish to Maven Central
         env:
-          MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
-          MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
-          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
-          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-          VERSION_NAME: ${{ steps.version.outputs.version }}
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_PRIVATE_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.GPG_PASSPHRASE }}
+          ORG_GRADLE_PROJECT_VERSION_NAME: ${{ steps.version.outputs.version }}
         run: ./gradlew publishToMavenCentral --no-build-cache
 
       - name: Create GitHub Release
