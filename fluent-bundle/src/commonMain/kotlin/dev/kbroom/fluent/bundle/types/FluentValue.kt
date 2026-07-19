@@ -179,10 +179,7 @@ private fun pluralCategoryArabic(intValue: Int): PluralCategory = when (intValue
     else -> PluralCategory.OTHER
 }
 
-private fun pluralCategoryDefault(intValue: Int): PluralCategory = when (intValue) {
-    1 -> PluralCategory.ONE
-    else -> PluralCategory.OTHER
-}
+private fun pluralCategoryDefault(@Suppress("UNUSED_PARAMETER") intValue: Int): PluralCategory = PluralCategory.OTHER
 
 /**
  * Plural categories per CLDR.
