@@ -14,7 +14,7 @@ Priority-ordered list of work items to reach a publishable v1.0.0.
 | 06 | [Publishing](06-publishing.md) | MEDIUM | ~0.5d left | SNAPSHOT live; cut `0.1.0` |
 | 07 | [Documentation](07-documentation.md) | MEDIUM | ~1d left | Dokka+Pages wired; KDoc/guides gaps remain |
 | 08 | [Performance](08-performance.md) | LOW | mostly done | `:benchmarks` JMH; 8.6 deferred |
-| 09 | [Ecosystem](09-ecosystem.md) | LOW | 3-10d | Compose, Ktor, CLI adapters |
+| 09 | [Ecosystem](09-ecosystem.md) | LOW | 3-10d | Gradle plugin, testing, Spring Boot, Compose |
 
 ## Critical path to v1.0.0
 
