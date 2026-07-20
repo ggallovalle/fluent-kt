@@ -73,6 +73,7 @@ class for details.
 | `fluent-resmgr` | File-system resource loading for bundles, with locale-tag → language → base path resolution. |
 | `fluent-testing` | Test helpers: loader for upstream `fluent-rs` fixtures. |
 | `fluent` | Umbrella module re-exporting the common entry points. |
+| `benchmarks` | JMH microbenchmarks via `kotlinx-benchmark` (not published). |
 
 ## Build
 
@@ -81,6 +82,8 @@ class for details.
 ./gradlew linuxX64Test     # Native tests
 ./gradlew detektAll        # Style + lint
 ./gradlew build            # All artifacts
+./gradlew :benchmarks:jvmSmokeBenchmark   # quick JMH smoke
+./gradlew :benchmarks:jvmBenchmark        # full JVM benchmarks
 ```
 
 Requires JDK 21 (Gradle target version).

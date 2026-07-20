@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `benchmarks` module with `kotlinx-benchmark` (JMH on JVM, linuxX64 target
+  registered): parse / `tryNew` / serialize / `formatMessage` /
+  `formatPattern` hot-path microbenchmarks. Run
+  `./gradlew :benchmarks:jvmSmokeBenchmark` or `:benchmarks:jvmBenchmark`.
 - Dokka HTML API docs (`./gradlew dokkaGenerate`) with GitHub Pages deploy
   workflow (`.github/workflows/docs.yml` → `https://ggallovalle.github.io/fluent-kt/`).
 - Immutable-by-construction `FluentBundle` with a fluent DSL (`fluentBundle(locales) { ... }`)

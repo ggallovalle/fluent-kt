@@ -13,7 +13,7 @@ Priority-ordered list of work items to reach a publishable v1.0.0.
 | 05 | [CI/CD](05-ci-cd.md) | HIGH | mostly done | Automated quality gates; SNAPSHOT live; first release pending |
 | 06 | [Publishing](06-publishing.md) | MEDIUM | ~0.5d left | SNAPSHOT live; cut `0.1.0` |
 | 07 | [Documentation](07-documentation.md) | MEDIUM | ~1d left | Dokka+Pages wired; KDoc/guides gaps remain |
-| 08 | [Performance](08-performance.md) | LOW | 1-1.5d | Benchmarks, profiling |
+| 08 | [Performance](08-performance.md) | LOW | mostly done | `:benchmarks` JMH; 8.6 deferred |
 | 09 | [Ecosystem](09-ecosystem.md) | LOW | 3-10d | Compose, Ktor, CLI adapters |
 
 ## Critical path to v1.0.0
@@ -36,7 +36,7 @@ Priority-ordered list of work items to reach a publishable v1.0.0.
 7. Add KDoc to public API + usage guide
 
 ### Post-v1 (08 + 09)
-8. Benchmarks (when performance matters)
+8. Benchmarks — `:benchmarks` module landed; re-run after major hot-path changes
 9. Ecosystem adapters (when adoption matters)
 
 ## Current snapshot

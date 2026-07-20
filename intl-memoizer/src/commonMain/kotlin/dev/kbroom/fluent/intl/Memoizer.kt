@@ -31,8 +31,8 @@ data class FormatterKey(val name: String, val options: Any? = null)
  * the cache only ever holds one canonical instance per key, and factories
  * are expected to be pure).
  *
- * Safe to share across threads after a
- * [dev.kbroom.fluent.bundle.FluentBundle] has been sealed via `seal()`.
+ * Safe to share across threads: the owning [dev.kbroom.fluent.bundle.FluentBundle]
+ * is immutable by construction, and this cache only grows via copy-on-write.
  */
 class IntlLangMemoizer {
     private val cache: AtomicRef<Map<KClass<*>, Any>> = atomic(emptyMap())

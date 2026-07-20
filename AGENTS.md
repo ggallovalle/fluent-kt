@@ -21,6 +21,7 @@ You are working on **fluent-kt**, a Kotlin Multiplatform port of [Mozilla's Flue
 | `fluent-resmgr` | Filesystem resource loading | Adding new filesystem conventions (Android assets, JARs, etc.). |
 | `fluent-testing` | Test helpers, shared fixtures, fluent-rs upstream data loader | Adding reusable test infrastructure. Tests elsewhere depend on this. |
 | `fluent` | Public umbrella re-exports | New entry point that the umbrella should expose. |
+| `benchmarks` | JMH / kotlinx-benchmark microbenchmarks (not published) | Adding or changing hot-path measurements. Run `:benchmarks:jvmBenchmark`. |
 
 If you're not sure which module a change belongs in, look at the existing tests in that module's `commonTest` — they encode the intended surface.
 
