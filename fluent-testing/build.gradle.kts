@@ -1,8 +1,8 @@
 description = "Test helpers and shared fixtures (loads fluent-rs upstream test data)"
 
 plugins {
-    kotlin("multiplatform") version "2.4.0"
-    kotlin("plugin.serialization") version "2.4.0"
+    kotlin("multiplatform") version "2.4.10"
+    kotlin("plugin.serialization") version "2.4.10"
     id("de.infix.testBalloon")
 }
 
@@ -20,7 +20,7 @@ kotlin {
             implementation(project(":intl-memoizer"))
         }
         jvmMain.dependencies {
-            implementation("com.charleskorn.kaml:kaml:0.70.0")
+            implementation("com.charleskorn.kaml:kaml:0.104.0")
         }
         commonTest.dependencies {
             implementation(kotlin("test"))
