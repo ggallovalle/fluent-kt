@@ -37,6 +37,9 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
 
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
       # Resolve version: tag pushes use the tag's `v`-stripped version;
       # manual dispatches accept a version override, defaulting to
       # 0.1.0-SNAPSHOT (throwaway) so re-runs during pipeline testing

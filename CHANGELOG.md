@@ -7,10 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-07-20
+
+### Added
+- Publish `fluent-codegen`, `fluent-gradle-plugin` (`dev.kbroom.fluent`), and
+  `fluent-compose` to Maven Central alongside the core modules.
+
 ## [0.2.0] - 2026-07-20
 
 ### Added
-- `fluent-compose` (Android Jetpack Compose, not published): `FluentBundleRegistry`,
+- `fluent-compose` (Android Jetpack Compose): `FluentBundleRegistry`,
   `ProvideFluentFromAssets` / `LocalFluentBundles`, `AssetResourceManager`, and
   `fluentString` escape hatch. Locale reloads from `LocalConfiguration`.
 - Codegen `generateComposeAccessors` → `remember{Bundle}Messages()` only (no
@@ -22,8 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   FTL layout (`{locale}/{bundle}/**/*.ftl`), `fluentValidate` /
   `fluentGenerate` / `fluentScaffoldLocale`, typed `*Messages` /
   `*L10n` wrappers with KDoc, `FtlIds`, and `*Resources` (`ResourceId`)
-  for fluent-fallback. Not published yet — apply from this repo /
-  included build.
+  for fluent-fallback.
 - `benchmarks` module with `kotlinx-benchmark` (JMH on JVM, linuxX64 target
   registered): parse / `tryNew` / serialize / `formatMessage` /
   `formatPattern` hot-path microbenchmarks. Run

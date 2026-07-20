@@ -36,28 +36,29 @@ dependencies {
 }
 
 // Apply the vanniktech publish plugin to every publishing module
-// (excludes internal modules: :fluent-testing, :benchmarks).
-// The plugin's base extension is configured with shared POM metadata
-// pulled from gradle.properties.
+// (excludes internal/example modules only).
 subprojects {
     if (project.path !in setOf(
             ":fluent-testing",
             ":benchmarks",
-            ":fluent-codegen",
-            ":fluent-gradle-plugin",
-            ":fluent-compose",
             ":examples",
             ":examples:android-compose",
         )
     ) {
         apply(plugin = "com.vanniktech.maven.publish")
-        apply(plugin = "org.jetbrains.dokka")
         extensions.configure(com.vanniktech.maven.publish.MavenPublishBaseExtension::class.java) {
             publishToMavenCentral()
-            signAllPublications()
+            // Sign only when a key is available (CI sets signingInMemoryKey).
+            val signingKey = project.findProperty("signingInMemoryKey")?.toString().orEmpty()
+            if (signingKey.isNotBlank()) {
+                signAllPublications()
+            }
             pom {
                 name.set(project.findProperty("POM_NAME") as String? ?: "fluent-kt")
-                description.set(project.findProperty("POM_DESCRIPTION") as String? ?: "")
+                description.set(
+                    project.description
+                        ?: (project.findProperty("POM_DESCRIPTION") as String? ?: ""),
+                )
                 inceptionYear.set(project.findProperty("POM_INCEPTION_YEAR") as String? ?: "2026")
                 url.set(project.findProperty("POM_URL") as String? ?: "")
                 licenses {
@@ -81,16 +82,25 @@ subprojects {
                 }
             }
         }
-        extensions.configure<DokkaExtension>("dokka") {
-            modulePath.set(project.name)
-            dokkaSourceSets.configureEach {
-                documentedVisibilities.set(setOf(VisibilityModifier.Public))
-                sourceLink {
-                    localDirectory.set(project.file("src"))
-                    remoteUrl.set(
-                        URI("https://github.com/ggallovalle/fluent-kt/tree/main/${project.name}/src"),
-                    )
-                    remoteLineSuffix.set("#L")
+        // Dokka HTML site: core KMP modules only (skip Android/plugin/codegen).
+        if (project.path !in setOf(
+                ":fluent-compose",
+                ":fluent-gradle-plugin",
+                ":fluent-codegen",
+            )
+        ) {
+            apply(plugin = "org.jetbrains.dokka")
+            extensions.configure<DokkaExtension>("dokka") {
+                modulePath.set(project.name)
+                dokkaSourceSets.configureEach {
+                    documentedVisibilities.set(setOf(VisibilityModifier.Public))
+                    sourceLink {
+                        localDirectory.set(project.file("src"))
+                        remoteUrl.set(
+                            URI("https://github.com/ggallovalle/fluent-kt/tree/main/${project.name}/src"),
+                        )
+                        remoteLineSuffix.set("#L")
+                    }
                 }
             }
         }
