@@ -17,7 +17,7 @@ Remaining work is filling gaps (guides, stubby KDoc, Dokka, migration).
 | KDoc on `Localization` / fallback / `ResourceManager` | ⚠️ — stubby class/method one-liners |
 | KDoc on `IntlFormatters` option enums | ⚠️ — interface documented; most option enums bare |
 | Custom-functions / fallback / pseudo / Maven coords in README | ❌ |
-| Dokka / GitHub Pages API reference | ❌ |
+| Dokka / GitHub Pages API reference | ✅ — `./gradlew dokkaGenerate`; workflow `.github/workflows/docs.yml` deploys to Pages on `main` |
 | fluent-rs → fluent-kt migration table | ❌ |
 
 **Do not** treat this as a greenfield doc project. Prefer deepening stubby
@@ -77,15 +77,20 @@ KDoc and extending the README over rewriting what already works.
 - [ ] **7.8c** Maven Central coordinates for consumers
   (`io.github.ggallovalle:fluent:…` / module artifacts). SNAPSHOT is
   live; update when `0.1.0` ships (see todo/05 §E.6, todo/06).
-- [ ] **7.8d** Fix broken relative link in README status table
-  (`../todo/04-…` → `todo/04-…` from repo root).
+- [ ] **7.8d** ~~Fix broken relative link in README status table~~
+  (fixed while wiring Dokka: `todo/04-…`).
+- [x] **7.8e** README "API reference" section linking to
+  `https://ggallovalle.github.io/fluent-kt/`.
 
 ### C. API reference
 
-- [ ] **7.9** Wire Dokka (`org.jetbrains.dokka`) for multi-module HTML
-  from `commonMain` public API.
-- [ ] **7.10** Deploy API docs to GitHub Pages (or link Dokka output
-  from README once published).
+- [x] **7.9** Dokka 2.2.0 wired at root: aggregates publishing modules
+  (excludes `:fluent-testing`). `./gradlew dokkaGenerate` →
+  `build/dokka/html`.
+- [x] **7.10** GitHub Pages workflow (`.github/workflows/docs.yml`)
+  builds Dokka and deploys via `actions/deploy-pages`. Requires repo
+  Settings → Pages → Source: **GitHub Actions** (one-time). Goes live
+  after the workflow runs on `main` (or via `workflow_dispatch`).
 
 ### D. Migration guide
 
@@ -102,6 +107,5 @@ KDoc and extending the README over rewriting what already works.
 
 ## Estimated effort remaining
 
-~0.5–1d for A (quality pass); ~0.5d for B; ~0.5d for C–D.
-Less than the original 1.5–2.5d estimate because the README and most
-bundle/syntax KDoc already landed.
+~0.5–1d for A (KDoc quality pass); ~0.5d for remaining B guides + D
+migration. Dokka + Pages (C) are wired.

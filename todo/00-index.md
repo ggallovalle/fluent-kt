@@ -12,7 +12,7 @@ Priority-ordered list of work items to reach a publishable v1.0.0.
 | 04 | [Project Hygiene](04-project-hygiene.md) | HIGH | 0.5-1.5d | README, LICENSE, dead code |
 | 05 | [CI/CD](05-ci-cd.md) | HIGH | mostly done | Automated quality gates; SNAPSHOT live; first release pending |
 | 06 | [Publishing](06-publishing.md) | MEDIUM | ~0.5d left | SNAPSHOT live; cut `0.1.0` |
-| 07 | [Documentation](07-documentation.md) | MEDIUM | ~1–1.5d left | README + core KDoc exist; guides/Dokka/gaps remain |
+| 07 | [Documentation](07-documentation.md) | MEDIUM | ~1d left | Dokka+Pages wired; KDoc/guides gaps remain |
 | 08 | [Performance](08-performance.md) | LOW | 1-1.5d | Benchmarks, profiling |
 | 09 | [Ecosystem](09-ecosystem.md) | LOW | 3-10d | Compose, Ktor, CLI adapters |
 

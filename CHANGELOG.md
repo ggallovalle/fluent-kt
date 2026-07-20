@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Dokka HTML API docs (`./gradlew dokkaGenerate`) with GitHub Pages deploy
+  workflow (`.github/workflows/docs.yml` → `https://ggallovalle.github.io/fluent-kt/`).
 - Immutable-by-construction `FluentBundle` with a fluent DSL (`fluentBundle(locales) { ... }`)
   and a separate `FluentBundleBuilder` for imperative construction.
 - Public API additions on `FluentBundle`: `entries()`, `getEntry(id)`, `hasTerm(id)`,

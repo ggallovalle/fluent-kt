@@ -12,7 +12,15 @@ date, and list formatting.
 |---|---|
 | JVM | ✅ |
 | Linux x64 (Kotlin/Native) | ✅ |
-| macOS, iOS, JS, wasm | ❌ — not yet (see [todo/04](../todo/04-project-hygiene.md)) |
+| macOS, iOS, JS, wasm | ❌ — not yet (see [todo/04](todo/04-project-hygiene.md)) |
+
+## API reference
+
+Generated KDoc (Dokka) is published to GitHub Pages:
+
+**https://ggallovalle.github.io/fluent-kt/**
+
+Build locally with `./gradlew dokkaGenerate` (output under `build/dokka/html`).
 
 ## Quick start
 
