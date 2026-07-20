@@ -4,9 +4,9 @@ import org.jetbrains.dokka.gradle.engine.parameters.VisibilityModifier
 
 // Top-level build file for fluent-kt
 plugins {
-    kotlin("multiplatform") version "2.4.0" apply false
+    kotlin("multiplatform") version "2.4.10" apply false
     id("com.android.library") version "9.3.0" apply false
-    kotlin("plugin.serialization") version "2.4.0" apply false
+    kotlin("plugin.serialization") version "2.4.10" apply false
     id("com.vanniktech.maven.publish") version "0.37.0" apply false
     id("de.infix.testBalloon") version "1.0.1-K2.4.0" apply false
     id("dev.detekt") version "2.0.0-alpha.5" apply false
