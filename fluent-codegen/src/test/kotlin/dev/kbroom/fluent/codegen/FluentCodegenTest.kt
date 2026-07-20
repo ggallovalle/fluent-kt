@@ -97,6 +97,23 @@ val FluentCodegenTest by testSuite {
         assertContains(ids, "object Errors")
     }
 
+    test("emits Compose remember accessors when enabled") {
+        val tree = LayoutDiscovery.discover(fixtureRoot(), FluentLayout.LocaleBundle)
+        val (models, report) = LocaleValidator.loadReferenceModels(tree, "en-US")
+        assertTrue(report.isOk, report.issues.joinToString { it.message })
+        val files = KotlinEmitter.emit(
+            models,
+            GenerateOptions(
+                packageName = "com.example.i18n",
+                generateComposeAccessors = true,
+            ),
+        )
+        val compose = files.getValue("AppComposeAccessors.kt")
+        assertContains(compose, "fun rememberAppMessages(): AppMessages")
+        assertContains(compose, "LocalFluentBundles.current.get(\"app\")")
+        assertContains(files.getValue("ErrorsComposeAccessors.kt"), "rememberErrorsMessages")
+    }
+
     test("generate writes files") {
         val out = Files.createTempDirectory("fluent-codegen-out")
         val written = FluentCodegen.generate(

@@ -98,6 +98,9 @@ abstract class FluentGenerateTask : DefaultTask() {
     abstract val generateKdoc: Property<Boolean>
 
     @get:Input
+    abstract val generateComposeAccessors: Property<Boolean>
+
+    @get:Input
     abstract val strictJunk: Property<Boolean>
 
     @TaskAction
@@ -115,6 +118,7 @@ abstract class FluentGenerateTask : DefaultTask() {
                 generateResourceIds = generateResourceIds.get(),
                 generateKdoc = generateKdoc.get(),
                 generateL10n = generateL10n.get(),
+                generateComposeAccessors = generateComposeAccessors.get(),
             ),
             validateOptions = ValidateOptions(
                 strictJunk = strictJunk.get(),

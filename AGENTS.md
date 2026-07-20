@@ -6,7 +6,7 @@ You are working on **fluent-kt**, a Kotlin Multiplatform port of [Mozilla's Flue
 
 - **`fluentBundle(locales) { ... }` DSL is the public entry point.** Mutators live on `FluentBundleBuilder`. The bundle is immutable by construction — no `seal()`, no `setUseIsolating` on the bundle itself.
 - **Bunles are thread-safe for concurrent reads by construction.** Internal state is set once at build time; the memoizer uses copy-on-write `AtomicRef` (no locks).
-- **Tests come first, TDD-style.** Failing test commit, then implementation commit, then refactor. Use **testBalloon** (`testSuite { test("…") { … } }`), not JUnit `@Test` classes. `./gradlew jvmTest linuxX64Test detektAll` must be green before any commit.
+- **Tests come first, TDD-style.** Failing test commit, then implementation commit, then refactor. Use **testBalloon** (`testSuite { test("…") { … } }`), not JUnit `@Test` classes — exception: `fluent-compose` Robolectric tests use JUnit4 `@RunWith(RobolectricTestRunner)` because `ApplicationProvider` needs that runner. `./gradlew jvmTest linuxX64Test detektAll` must be green before any commit (plus `:fluent-compose:testDebugUnitTest` when touching Compose).
 - **CommonMain is sacred.** No `java.util.concurrent`, no `java.time`, no `java.io.File` in `commonMain`. Use platform-specific source sets (`jvmMain`, `linuxX64Main`) for those, and `expect`/`actual` declarations when needed.
 
 ## Module map
@@ -23,6 +23,8 @@ You are working on **fluent-kt**, a Kotlin Multiplatform port of [Mozilla's Flue
 | `fluent` | Public umbrella re-exports | New entry point that the umbrella should expose. |
 | `fluent-codegen` | Layout discovery, AST→`BundleModel`, Kotlin emitter, locale scaffold | Changing generated API shape or validation rules. |
 | `fluent-gradle-plugin` | Gradle plugin `dev.kbroom.fluent` (validate / generate / scaffold) | Plugin extension, tasks, source-set wiring. |
+| `fluent-compose` | Android Jetpack Compose: `ProvideFluentFromAssets`, registry, `fluentString` escape hatch (not published) | CompositionLocals, asset loading, locale reload. |
+| `examples/android-compose` | Sample app validating Activity + `remember*Messages()` call site | Wiring codegen + Compose UI. |
 | `benchmarks` | JMH / kotlinx-benchmark microbenchmarks (not published) | Adding or changing hot-path measurements. Run `:benchmarks:jvmBenchmark`. |
 
 If you're not sure which module a change belongs in, look at the existing tests in that module's `commonTest` — they encode the intended surface.

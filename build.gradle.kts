@@ -6,8 +6,11 @@ import org.jetbrains.dokka.gradle.engine.parameters.VisibilityModifier
 plugins {
     kotlin("multiplatform") version "2.4.10" apply false
     kotlin("jvm") version "2.4.10" apply false
+    kotlin("android") version "2.4.10" apply false
     id("com.android.library") version "9.3.0" apply false
+    id("com.android.application") version "9.3.0" apply false
     kotlin("plugin.serialization") version "2.4.10" apply false
+    kotlin("plugin.compose") version "2.4.10" apply false
     id("com.vanniktech.maven.publish") version "0.37.0" apply false
     id("de.infix.testBalloon") version "1.0.1-K2.4.0" apply false
     id("dev.detekt") version "2.0.0-alpha.5" apply false
@@ -42,6 +45,9 @@ subprojects {
             ":benchmarks",
             ":fluent-codegen",
             ":fluent-gradle-plugin",
+            ":fluent-compose",
+            ":examples",
+            ":examples:android-compose",
         )
     ) {
         apply(plugin = "com.vanniktech.maven.publish")
@@ -98,6 +104,19 @@ subprojects {
     val detektVersion = libs.findVersion("detekt").get().requiredVersion
     val detektKotlinVersion = libs.findVersion("detektKotlin").get().requiredVersion
     val detektJvmTarget = libs.findVersion("detektJvmTarget").get().requiredVersion
+
+    // Use JDK 17 for Kotlin compilations even when Gradle runs on a newer JDK.
+    // Android unit tests (and Java 17 consumers) cannot load class-file 70+.
+    pluginManager.withPlugin("org.jetbrains.kotlin.jvm") {
+        extensions.configure<org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension>("kotlin") {
+            jvmToolchain(17)
+        }
+    }
+    pluginManager.withPlugin("org.jetbrains.kotlin.multiplatform") {
+        extensions.configure<org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension>("kotlin") {
+            jvmToolchain(17)
+        }
+    }
 
     apply<dev.detekt.gradle.plugin.DetektPlugin>()
 
@@ -156,6 +175,15 @@ subprojects {
     }
 
     tasks.withType<Test>().configureEach {
-        timeout.set(java.time.Duration.ofSeconds(10))
+        // Robolectric cold-starts are slow; Android unit tests need more headroom.
+        val seconds = if (name.contains("Android") ||
+            name.contains("DebugUnitTest") ||
+            name.contains("ReleaseUnitTest")
+        ) {
+            120L
+        } else {
+            10L
+        }
+        timeout.set(java.time.Duration.ofSeconds(seconds))
     }
 }
