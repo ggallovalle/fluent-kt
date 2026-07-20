@@ -7,11 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-07-20
+
+### Changed
+- Gradle plugin id is now `io.github.ggallovalle.fluent` (was `dev.kbroom.fluent`)
+  so the plugin-marker POM stays under the Maven Central namespace
+  `io.github.ggallovalle`. Kotlin packages remain `dev.kbroom.fluent.*`.
+
 ## [0.2.1] - 2026-07-20
 
 ### Added
-- Publish `fluent-codegen`, `fluent-gradle-plugin` (`dev.kbroom.fluent`), and
+- Publish `fluent-codegen`, `fluent-gradle-plugin` (`io.github.ggallovalle.fluent`), and
   `fluent-compose` to Maven Central alongside the core modules.
+  Note: `0.2.1` Central validation failed because the old plugin marker used
+  group `dev.kbroom.fluent`; use `0.2.2` instead.
 
 ## [0.2.0] - 2026-07-20
 
@@ -24,7 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `androidComponents` / `addGeneratedSourceDirectory`.
 - `examples/android-compose` sample: assets under `i18n/{locale}/{bundle}/`,
   Activity root provider, multi-screen NavHost using generated accessors.
-- `fluent-codegen` + `fluent-gradle-plugin` (`dev.kbroom.fluent`): multi-bundle
+- `fluent-codegen` + `fluent-gradle-plugin` (`io.github.ggallovalle.fluent`): multi-bundle
   FTL layout (`{locale}/{bundle}/**/*.ftl`), `fluentValidate` /
   `fluentGenerate` / `fluentScaffoldLocale`, typed `*Messages` /
   `*L10n` wrappers with KDoc, `FtlIds`, and `*Resources` (`ResourceId`)

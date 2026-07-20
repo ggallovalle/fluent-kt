@@ -19,7 +19,7 @@ dependencies {
 gradlePlugin {
     plugins {
         create("fluent") {
-            id = "dev.kbroom.fluent"
+            id = "io.github.ggallovalle.fluent"
             displayName = "Fluent FTL codegen"
             description =
                 "Validates Fluent FTL trees and generates typed Kotlin accessors " +

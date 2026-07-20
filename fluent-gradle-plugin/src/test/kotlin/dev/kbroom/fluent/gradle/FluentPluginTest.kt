@@ -8,7 +8,7 @@ import kotlin.test.assertTrue
 val FluentPluginTest by testSuite {
     test("applies tasks and extension") {
         val project = ProjectBuilder.builder().build()
-        project.plugins.apply("dev.kbroom.fluent")
+        project.plugins.apply("io.github.ggallovalle.fluent")
 
         assertNotNull(project.extensions.findByName("fluent"))
         assertNotNull(project.tasks.findByName("fluentValidate"))
