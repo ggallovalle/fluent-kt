@@ -12,7 +12,7 @@ CLI (optional).
 
 ### A. Gradle plugin (highest leverage)
 
-- [x] **9.1** `fluent-codegen` + `fluent-gradle-plugin` (`dev.kbroom.fluent`):
+- [x] **9.1** `fluent-codegen` + `fluent-gradle-plugin` (`io.github.ggallovalle.fluent`):
   - `fluentValidate` — Junk + cross-locale ID/arg parity
   - `fluentGenerate` — `*Messages` / `*L10n` + KDoc, `FtlIds`, `*Resources`
   - `fluentScaffoldLocale` — new locale tree from `defaultLocale`

@@ -15,7 +15,7 @@ plugins {
  * JavaExec wrapper with a [DirectoryProperty] so AGP can wire generated Kotlin
  * via [com.android.build.api.variant.SourceDirectories.addGeneratedSourceDirectory].
  *
- * In-repo samples cannot apply `id("dev.kbroom.fluent")` via a project dependency
+ * In-repo samples cannot apply `id("io.github.ggallovalle.fluent")` via a project dependency
  * in `buildscript`; published consumers use the Gradle plugin instead.
  */
 abstract class FluentGenerateExec : JavaExec() {

@@ -1,7 +1,5 @@
 package dev.kbroom.fluent.gradle
 
-import com.android.build.api.variant.AndroidComponentsExtension
-import com.android.build.api.variant.Variant
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.tasks.SourceSetContainer
@@ -123,18 +121,12 @@ class FluentPlugin : Plugin<Project> {
         }
     }
 
-    @Suppress("UNCHECKED_CAST")
     private fun wireAndroidGeneratedSources(
         project: Project,
         generate: TaskProvider<FluentGenerateTask>,
     ) {
-        val components = project.extensions.getByType(AndroidComponentsExtension::class.java)
-            as AndroidComponentsExtension<*, *, *>
-        components.onVariants { variant: Variant ->
-            variant.sources.kotlin?.addGeneratedSourceDirectory(
-                generate,
-                FluentGenerateTask::outputDir,
-            )
-        }
+        // Implemented in a separate class so AGP types are not on FluentPlugin's
+        // method signatures (AGP is compileOnly; ProjectBuilder tests lack it).
+        AndroidFluentSourceWiring.wire(project, generate)
     }
 }

@@ -29,5 +29,5 @@ Tap **en-US** / **es-MX** on the home screen to switch application locales
 
 `fluentGenerate` (JavaExec → `FluentCodegenMain`) runs before `preBuild` and
 emits `rememberAppMessages()` / `rememberErrorsMessages()`. Published apps
-should use `id("dev.kbroom.fluent") { generateComposeAccessors.set(true) }`
+should use `id("io.github.ggallovalle.fluent") { generateComposeAccessors.set(true) }`
 instead of the in-repo JavaExec bridge.
