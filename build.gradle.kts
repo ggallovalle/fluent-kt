@@ -5,6 +5,7 @@ import org.jetbrains.dokka.gradle.engine.parameters.VisibilityModifier
 // Top-level build file for fluent-kt
 plugins {
     kotlin("multiplatform") version "2.4.10" apply false
+    kotlin("jvm") version "2.4.10" apply false
     id("com.android.library") version "9.3.0" apply false
     kotlin("plugin.serialization") version "2.4.10" apply false
     id("com.vanniktech.maven.publish") version "0.37.0" apply false
@@ -36,7 +37,13 @@ dependencies {
 // The plugin's base extension is configured with shared POM metadata
 // pulled from gradle.properties.
 subprojects {
-    if (project.path !in setOf(":fluent-testing", ":benchmarks")) {
+    if (project.path !in setOf(
+            ":fluent-testing",
+            ":benchmarks",
+            ":fluent-codegen",
+            ":fluent-gradle-plugin",
+        )
+    ) {
         apply(plugin = "com.vanniktech.maven.publish")
         apply(plugin = "org.jetbrains.dokka")
         extensions.configure(com.vanniktech.maven.publish.MavenPublishBaseExtension::class.java) {

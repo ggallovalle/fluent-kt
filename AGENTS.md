@@ -6,7 +6,7 @@ You are working on **fluent-kt**, a Kotlin Multiplatform port of [Mozilla's Flue
 
 - **`fluentBundle(locales) { ... }` DSL is the public entry point.** Mutators live on `FluentBundleBuilder`. The bundle is immutable by construction — no `seal()`, no `setUseIsolating` on the bundle itself.
 - **Bunles are thread-safe for concurrent reads by construction.** Internal state is set once at build time; the memoizer uses copy-on-write `AtomicRef` (no locks).
-- **Tests come first, TDD-style.** Failing test commit, then implementation commit, then refactor. `./gradlew jvmTest linuxX64Test detektAll` must be green before any commit.
+- **Tests come first, TDD-style.** Failing test commit, then implementation commit, then refactor. Use **testBalloon** (`testSuite { test("…") { … } }`), not JUnit `@Test` classes. `./gradlew jvmTest linuxX64Test detektAll` must be green before any commit.
 - **CommonMain is sacred.** No `java.util.concurrent`, no `java.time`, no `java.io.File` in `commonMain`. Use platform-specific source sets (`jvmMain`, `linuxX64Main`) for those, and `expect`/`actual` declarations when needed.
 
 ## Module map
@@ -21,6 +21,8 @@ You are working on **fluent-kt**, a Kotlin Multiplatform port of [Mozilla's Flue
 | `fluent-resmgr` | Filesystem resource loading | Adding new filesystem conventions (Android assets, JARs, etc.). |
 | `fluent-testing` | Test helpers, shared fixtures, fluent-rs upstream data loader | Adding reusable test infrastructure. Tests elsewhere depend on this. |
 | `fluent` | Public umbrella re-exports | New entry point that the umbrella should expose. |
+| `fluent-codegen` | Layout discovery, AST→`BundleModel`, Kotlin emitter, locale scaffold | Changing generated API shape or validation rules. |
+| `fluent-gradle-plugin` | Gradle plugin `dev.kbroom.fluent` (validate / generate / scaffold) | Plugin extension, tasks, source-set wiring. |
 | `benchmarks` | JMH / kotlinx-benchmark microbenchmarks (not published) | Adding or changing hot-path measurements. Run `:benchmarks:jvmBenchmark`. |
 
 If you're not sure which module a change belongs in, look at the existing tests in that module's `commonTest` — they encode the intended surface.
@@ -102,6 +104,40 @@ If you find yourself reaching for a JVM-only API in `commonMain`, the right move
 3. For now, throw `UnsupportedOperationException` on platforms you can't easily support.
 
 ## Test conventions
+
+### Framework: testBalloon only
+
+**All tests use [testBalloon](https://github.com/infix-de/testBalloon)** — including
+JVM-only modules (`fluent-codegen`, `fluent-gradle-plugin`). Do **not** use
+JUnit `@Test` / `class FooTest`, Kotest specs, or `tasks.test { useJUnitPlatform() }`
+as the primary harness.
+
+Pattern (see any `*Test.kt` in `fluent-syntax` / `fluent-bundle`):
+
+```kotlin
+import de.infix.testBalloon.framework.core.testSuite
+import kotlin.test.assertEquals
+
+val FluentThingTest by testSuite {
+    test("does the thing") {
+        assertEquals(expected, actual)
+    }
+}
+```
+
+Module wiring:
+
+```kotlin
+plugins {
+    id("de.infix.testBalloon") // or with version if root does not apply false
+}
+// dependencies:
+testImplementation("de.infix.testBalloon:testBalloon-framework-core:1.0.1-K2.4.0")
+// KMP: put that in commonTest / jvmTest source sets, not a raw tasks.test {} block
+```
+
+Assertions still come from `kotlin.test` (`assertEquals`, `assertTrue`, …).
+Wildcards are allowed in test files only.
 
 ### TDD discipline
 
