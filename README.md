@@ -75,9 +75,9 @@ class for details.
 | `fluent-resmgr` | File-system resource loading for bundles, with locale-tag → language → base path resolution. |
 | `fluent-testing` | Test helpers: loader for upstream `fluent-rs` fixtures. |
 | `fluent` | Umbrella module re-exporting the common entry points. |
-| `fluent-codegen` | AST walk + Kotlin emitter + locale scaffold (used by the Gradle plugin; not published yet). |
-| `fluent-gradle-plugin` | Gradle plugin `dev.kbroom.fluent` — validate / generate / scaffold (not published yet). |
-| `fluent-compose` | Android Jetpack Compose: assets provider, multi-bundle registry, codegen `remember*Messages()` (not published yet). |
+| `fluent-codegen` | AST walk + Kotlin emitter + locale scaffold (used by the Gradle plugin). |
+| `fluent-gradle-plugin` | Gradle plugin `dev.kbroom.fluent` — validate / generate / scaffold. |
+| `fluent-compose` | Android Jetpack Compose: assets provider, multi-bundle registry, codegen `remember*Messages()`. |
 | `benchmarks` | JMH microbenchmarks via `kotlinx-benchmark` (not published). |
 
 ## Gradle plugin (experimental)
@@ -87,7 +87,7 @@ Typed accessors from a multi-bundle FTL tree
 
 ```kotlin
 plugins {
-    id("dev.kbroom.fluent")
+    id("dev.kbroom.fluent") version "0.2.1"
 }
 
 fluent {
@@ -118,7 +118,7 @@ fluent {
 }
 
 dependencies {
-    implementation("dev.kbroom.fluent:fluent-compose") // when published
+    implementation("io.github.ggallovalle:fluent-compose:0.2.1")
 }
 ```
 

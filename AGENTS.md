@@ -23,7 +23,7 @@ You are working on **fluent-kt**, a Kotlin Multiplatform port of [Mozilla's Flue
 | `fluent` | Public umbrella re-exports | New entry point that the umbrella should expose. |
 | `fluent-codegen` | Layout discovery, AST→`BundleModel`, Kotlin emitter, locale scaffold | Changing generated API shape or validation rules. |
 | `fluent-gradle-plugin` | Gradle plugin `dev.kbroom.fluent` (validate / generate / scaffold) | Plugin extension, tasks, source-set wiring. |
-| `fluent-compose` | Android Jetpack Compose: `ProvideFluentFromAssets`, registry, `fluentString` escape hatch (not published) | CompositionLocals, asset loading, locale reload. |
+| `fluent-compose` | Android Jetpack Compose: `ProvideFluentFromAssets`, registry, `fluentString` escape hatch | CompositionLocals, asset loading, locale reload. |
 | `examples/android-compose` | Sample app validating Activity + `remember*Messages()` call site | Wiring codegen + Compose UI. |
 | `benchmarks` | JMH / kotlinx-benchmark microbenchmarks (not published) | Adding or changing hot-path measurements. Run `:benchmarks:jvmBenchmark`. |
 
