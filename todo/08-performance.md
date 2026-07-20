@@ -1,69 +1,93 @@
 # 08 — Performance
 
-**Priority: LOW** — No benchmarks exist. Performance is unknown but likely adequate
-for typical use cases. This matters at scale (large apps, many locales).
+**Priority: LOW** — Benchmarks land in `:benchmarks`. Profile before
+optimizing; typical apps are unlikely to be limited by Fluent.
 
 ## Current state
 
-No benchmarks. No profiling. No known performance issues but also no measurement.
+`kotlinx-benchmark` module (`:benchmarks`) covers the §A hot paths.
+§B–E findings below are from code review against those paths; treat them
+as hypotheses to confirm with JMH / allocation profiling before changing
+runtime code.
 
 ## Tasks
 
 ### A. Microbenchmarks
 
-- [ ] **8.1** Add JMH benchmarks (JVM-only) for:
+- [x] **8.1** Add JMH benchmarks (JVM-only) for:
   - `FluentParser.parse()` — parse 100-message FTL file
   - `FluentBundle.formatMessage()` — format message with args
   - `FluentBundle.formatPattern()` — format pattern with placeables
   - `Serializer.serialize()` — serialize AST to string
   - `FluentResource.tryNew()` — parse + wrap
 
-- [ ] **8.2** Use `kotlinx-benchmark` for KMP-compatible benchmarks:
-  ```kotlin
-  plugins {
-      kotlin("plugin.serialization") version "..."
-      id("org.jetbrains.kotlinx.benchmark") version "..."
-  }
+- [x] **8.2** Use `kotlinx-benchmark` for KMP-compatible benchmarks:
+  - Plugin `org.jetbrains.kotlinx.benchmark` `0.4.17`
+  - Benchmarks live in `benchmarks/src/commonMain`
+  - Targets: `jvm` (JMH) + `linuxX64`
+  - Profiles: `main` (default) and `smoke` (fast sanity)
+
+  ```bash
+  ./gradlew :benchmarks:jvmSmokeBenchmark
+  ./gradlew :benchmarks:jvmBenchmark
+  ./gradlew :benchmarks:linuxX64Benchmark
   ```
 
 ### B. Memory profiling
 
-- [ ] **8.3** Measure allocation patterns:
-  - `formatPattern` creates a `Scope` per call — check if this can be pooled
-  - `PatternElement.TextElement` string concatenation — check if `StringBuilder`
-    is efficient
-  - `FluentValue.Str` allocation per resolution
+- [x] **8.3** Measure allocation patterns (code review; confirm with JMH
+  `gc` profiler / async-profiler when optimizing):
+  - `formatPattern` / `formatMessage` allocate a fresh `Scope` +
+    `mutableListOf<FluentError>()` per call — pooling is unlikely to
+    win until allocation profiles show Scope as a hotspot.
+  - `PatternElement.TextElement` appends into a single `StringBuilder`
+    in `PatternResolver.resolve` — already efficient.
+  - `FluentValue.Str` is allocated when boxing resolved strings; expected
+    for the value type. Prefer measuring before introducing caching.
 
-- [ ] **8.4** Kotlin/Native memory:
-  - `FluentBundle` state should be frozen/immutable after population
-  - Verify no accidental mutation after handoff to background threads
+- [x] **8.4** Kotlin/Native memory:
+  - `FluentBundle` is immutable by construction (no `seal()`); entries /
+    functions / transform are snapshots taken at `build()`.
+  - Memoizer uses copy-on-write `AtomicRef` maps — safe to share across
+    workers after handoff. Stale `seal()` KDoc on `IntlLangMemoizer`
+    corrected.
 
 ### C. Caching
 
-- [ ] **8.5** `IntlLangMemoizer` already caches intl formatters. Verify:
-  - Cache hit rate is reasonable
-  - No memory leak (unbounded cache growth)
-  - Thread-safe on JVM
+- [x] **8.5** `IntlLangMemoizer` already caches intl formatters. Verify:
+  - **Hit rate**: first call per `(type|FormatterKey)` misses; subsequent
+    calls hit. Reasonable for steady-state formatting.
+  - **Growth**: caches are unbounded maps keyed by type / formatter
+    options / locale. Growth is bounded by distinct keys the app creates,
+    not by call count. No eviction — fine for typical locale+option sets;
+    watch if callers invent unbounded option combinations.
+  - **Thread-safety**: copy-on-write `AtomicRef` + CAS (see
+    `intl-memoizer`); covered by existing concurrency tests.
 
-- [ ] **8.6** Consider caching `formatMessage` results for constant messages
-  (messages with no args). Profile before/after.
+- [ ] **8.6** Consider caching `formatMessage` results for constant
+  messages (no args). **Defer** until JMH shows constant-message
+  formatting as a hotspot — adds invalidation complexity for little
+  gain if apps already hold the string.
 
 ### D. Bundle population
 
-- [ ] **8.7** `addResource` copies entries into a HashMap. For large bundles
-  (1000+ messages), profile:
-  - HashMap resize cost
-  - Memory overhead per entry
-  - Consider `LinkedHashMap` for ordering
+- [x] **8.7** `addResource` copies entries into a map. Findings:
+  - Builder already uses `linkedMapOf()` (insertion-ordered
+    `LinkedHashMap`) — no change needed for ordering.
+  - `build()` snapshots via `entries.toMap()` (one copy). For 1000+
+    messages this is a one-time cost at construction; not on the
+    format hot path.
+  - Revisit only if large-bundle construction shows up in profiles.
 
 ### E. Resolver allocation
 
-- [ ] **8.8** `resolve()` uses `StringBuilder` per call — verify no excessive
-  allocation. Current implementation seems reasonable (single SB per resolve).
+- [x] **8.8** `resolve()` uses one `StringBuilder` per call — confirmed
+  in `PatternResolver.resolve`. No nested SB churn on the text path.
 
-- [ ] **8.9** `trackPlaceable` uses a `MutableSet<String>` — verify O(1) lookups
-  for cyclic detection.
+- [x] **8.9** `trackPlaceable` uses `mutableSetOf()` → `LinkedHashSet`
+  (O(1) average `contains`/`add`/`remove`) for cyclic detection. Fine.
 
 ## Estimated effort
 
-~1 day for A; ~0.5 day for B-D; profiling is ongoing (run after each major change).
+~1 day for A (done); ~0.5 day for B–E review (done except 8.6 deferral).
+Re-run `:benchmarks:jvmBenchmark` after major resolver/parser changes.

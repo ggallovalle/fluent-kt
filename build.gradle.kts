@@ -32,11 +32,11 @@ dependencies {
 }
 
 // Apply the vanniktech publish plugin to every publishing module
-// (excludes :fluent-testing, which is internal test infrastructure).
+// (excludes internal modules: :fluent-testing, :benchmarks).
 // The plugin's base extension is configured with shared POM metadata
 // pulled from gradle.properties.
 subprojects {
-    if (project.path != ":fluent-testing") {
+    if (project.path !in setOf(":fluent-testing", ":benchmarks")) {
         apply(plugin = "com.vanniktech.maven.publish")
         apply(plugin = "org.jetbrains.dokka")
         extensions.configure(com.vanniktech.maven.publish.MavenPublishBaseExtension::class.java) {
