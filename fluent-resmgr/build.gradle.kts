@@ -1,8 +1,8 @@
 description = "Filesystem resource loader for Fluent bundles with locale-tag -> language -> base path resolution"
 
 plugins {
-    kotlin("multiplatform") version "2.4.0"
-    kotlin("plugin.serialization") version "2.4.0"
+    kotlin("multiplatform") version "2.4.10"
+    kotlin("plugin.serialization") version "2.4.10"
     id("de.infix.testBalloon")
 }
 

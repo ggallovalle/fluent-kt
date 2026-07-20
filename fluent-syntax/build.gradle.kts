@@ -1,8 +1,8 @@
 description = "FTL (Fluent Translation List) parser and serializer for Kotlin Multiplatform"
 
 plugins {
-    kotlin("multiplatform") version "2.4.0"
-    kotlin("plugin.serialization") version "2.4.0"
+    kotlin("multiplatform") version "2.4.10"
+    kotlin("plugin.serialization") version "2.4.10"
     id("de.infix.testBalloon")
 }
 
