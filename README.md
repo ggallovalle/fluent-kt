@@ -77,6 +77,7 @@ class for details.
 | `fluent` | Umbrella module re-exporting the common entry points. |
 | `fluent-codegen` | AST walk + Kotlin emitter + locale scaffold (used by the Gradle plugin; not published yet). |
 | `fluent-gradle-plugin` | Gradle plugin `dev.kbroom.fluent` — validate / generate / scaffold (not published yet). |
+| `fluent-compose` | Android Jetpack Compose: assets provider, multi-bundle registry, codegen `remember*Messages()` (not published yet). |
 | `benchmarks` | JMH microbenchmarks via `kotlinx-benchmark` (not published). |
 
 ## Gradle plugin (experimental)
@@ -108,6 +109,51 @@ Generated types (from the default locale):
 - `FtlIds.App.GREETING` — message id constants
 - `AppResources.Messages` — `ResourceId` constants for `fluent-fallback`
 
+With Compose:
+
+```kotlin
+fluent {
+    // …
+    generateComposeAccessors.set(true)
+}
+
+dependencies {
+    implementation("dev.kbroom.fluent:fluent-compose") // when published
+}
+```
+
+emits `rememberAppMessages()` / `rememberErrorsMessages()` that read
+`LocalFluentBundles` — **not** generated `*Text` composables. Your UI owns
+`Text` / `Button` / semantics.
+
+## Android Compose (experimental)
+
+```kotlin
+setContent {
+    ProvideFluentFromAssets(
+        resourceIdsByBundle = mapOf(
+            "app" to AppResources.All,
+            "errors" to ErrorsResources.All,
+        ),
+        fallbackLocale = LanguageIdentifier.parse("en-US"),
+        basePath = "i18n",
+    ) {
+        HomeScreen()
+    }
+}
+
+@Composable
+fun HomeScreen() {
+    val app = rememberAppMessages()
+    Text(app.greeting(name = "Ada"))
+}
+```
+
+Assets layout: `src/main/assets/i18n/{locale}/{bundle}/**/*.ftl`.
+See [`examples/android-compose`](examples/android-compose/) and
+[examples/README.md](examples/README.md). Docs:
+https://ggallovalle.github.io/fluent-kt/
+
 See [todo/09-ecosystem.md](todo/09-ecosystem.md) for the full design.
 
 ## Build
@@ -117,6 +163,8 @@ See [todo/09-ecosystem.md](todo/09-ecosystem.md) for the full design.
 ./gradlew linuxX64Test     # Native tests
 ./gradlew detektAll        # Style + lint
 ./gradlew build            # All artifacts
+./gradlew :fluent-compose:testDebugUnitTest          # Android Compose library
+./gradlew :examples:android-compose:assembleDebug    # sample app
 ./gradlew :benchmarks:jvmSmokeBenchmark   # quick JMH smoke
 ./gradlew :benchmarks:jvmBenchmark        # full JVM benchmarks
 ```

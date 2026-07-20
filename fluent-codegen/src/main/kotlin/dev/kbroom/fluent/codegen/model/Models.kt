@@ -54,6 +54,7 @@ data class GenerateOptions(
     val generateResourceIds: Boolean = true,
     val generateKdoc: Boolean = true,
     val generateL10n: Boolean = true,
+    val generateComposeAccessors: Boolean = false,
 )
 
 /** Options controlling validation. */

@@ -1,0 +1,2 @@
+submit = Continuar
+cancel = Cancelar

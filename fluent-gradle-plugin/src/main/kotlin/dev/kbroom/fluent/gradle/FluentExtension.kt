@@ -30,6 +30,7 @@ abstract class FluentExtension @Inject constructor(objects: ObjectFactory) {
     abstract val generateResourceIds: Property<Boolean>
     abstract val generateL10n: Property<Boolean>
     abstract val generateKdoc: Property<Boolean>
+    abstract val generateComposeAccessors: Property<Boolean>
     abstract val strictJunk: Property<Boolean>
     abstract val checkMissingTranslations: Property<Boolean>
     abstract val checkArgParity: Property<Boolean>
@@ -52,6 +53,7 @@ abstract class FluentExtension @Inject constructor(objects: ObjectFactory) {
         generateResourceIds.convention(true)
         generateL10n.convention(true)
         generateKdoc.convention(true)
+        generateComposeAccessors.convention(false)
         strictJunk.convention(true)
         checkMissingTranslations.convention(true)
         checkArgParity.convention(true)

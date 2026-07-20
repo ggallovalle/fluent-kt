@@ -46,3 +46,32 @@ jobs:
 
       - name: Run LinuxX64 (Kotlin/Native) tests
         run: ./gradlew linuxX64Test --no-build-cache
+
+  android:
+    name: verify (Android compose + example)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Assemble fluent-compose + example
+        run: ./gradlew :fluent-compose:assembleDebug :examples:android-compose:assembleDebug --no-build-cache
+
+      - name: Run fluent-compose unit tests
+        run: ./gradlew :fluent-compose:testDebugUnitTest --no-build-cache

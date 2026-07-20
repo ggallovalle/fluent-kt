@@ -1,5 +1,7 @@
 package dev.kbroom.fluent.gradle
 
+import com.android.build.api.variant.AndroidComponentsExtension
+import com.android.build.api.variant.Variant
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.tasks.SourceSetContainer
@@ -14,11 +16,30 @@ import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 class FluentPlugin : Plugin<Project> {
     override fun apply(project: Project) {
         val extension = project.extensions.create("fluent", FluentExtension::class.java)
-
         extension.outputDir.convention(
             project.layout.buildDirectory.dir("generated/fluent/kotlin"),
         )
+        val generate = registerTasks(project, extension)
+        project.plugins.withId("com.android.application") {
+            wireAndroidGeneratedSources(project, generate)
+        }
+        project.plugins.withId("com.android.library") {
+            wireAndroidGeneratedSources(project, generate)
+        }
+        project.afterEvaluate {
+            if (extension.sourceDirs.isEmpty) {
+                extension.sourceDirs.from(
+                    project.layout.projectDirectory.dir("src/main/resources/i18n"),
+                )
+            }
+            wireNonAndroidGeneratedSources(project, extension, generate)
+        }
+    }
 
+    private fun registerTasks(
+        project: Project,
+        extension: FluentExtension,
+    ): TaskProvider<FluentGenerateTask> {
         val validate = project.tasks.register(
             "fluentValidate",
             FluentValidateTask::class.java,
@@ -49,6 +70,7 @@ class FluentPlugin : Plugin<Project> {
             task.generateResourceIds.set(extension.generateResourceIds)
             task.generateL10n.set(extension.generateL10n)
             task.generateKdoc.set(extension.generateKdoc)
+            task.generateComposeAccessors.set(extension.generateComposeAccessors)
             task.strictJunk.set(extension.strictJunk)
             task.dependsOn(validate)
         }
@@ -66,18 +88,10 @@ class FluentPlugin : Plugin<Project> {
             task.overwrite.set(extension.scaffold.overwrite)
             task.toLocale.convention(extension.scaffold.to)
         }
-
-        project.afterEvaluate {
-            if (extension.sourceDirs.isEmpty) {
-                extension.sourceDirs.from(
-                    project.layout.projectDirectory.dir("src/main/resources/i18n"),
-                )
-            }
-            wireGeneratedSources(project, extension, generate)
-        }
+        return generate
     }
 
-    private fun wireGeneratedSources(
+    private fun wireNonAndroidGeneratedSources(
         project: Project,
         extension: FluentExtension,
         generate: TaskProvider<FluentGenerateTask>,
@@ -106,6 +120,21 @@ class FluentPlugin : Plugin<Project> {
             sourceSets.named("main") { main ->
                 main.java.srcDir(generated)
             }
+        }
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun wireAndroidGeneratedSources(
+        project: Project,
+        generate: TaskProvider<FluentGenerateTask>,
+    ) {
+        val components = project.extensions.getByType(AndroidComponentsExtension::class.java)
+            as AndroidComponentsExtension<*, *, *>
+        components.onVariants { variant: Variant ->
+            variant.sources.kotlin?.addGeneratedSourceDirectory(
+                generate,
+                FluentGenerateTask::outputDir,
+            )
         }
     }
 }

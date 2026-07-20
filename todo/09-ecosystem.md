@@ -111,28 +111,20 @@ needs Thymeleaf / `#{…}` integration.
 
 ### D. Android/Jetpack Compose
 
-Needs an Android/Compose target beyond the current JVM + LinuxX64 matrix —
-budget more than a thin adapter if wiring that target from scratch.
+Android Jetpack Compose only (not Compose Multiplatform). Leaf `fluent-compose`
+module — no `android {}` on core KMP modules.
 
-- [ ] **9.4** `fluent-compose` module — Compose integration:
-  ```kotlin
-  @Composable
-  fun LocalizedText(messageId: String, args: FluentArgs? = null) {
-      val bundle = LocalFluentBundle.current
-      val text = bundle.formatMessage(messageId, args) ?: messageId
-      Text(text)
-  }
-  ```
-
-- [ ] **9.5** `CompositionLocal` for `FluentBundle`:
-  ```kotlin
-  val LocalFluentBundle = staticCompositionLocalOf<FluentBundle> {
-      error("No FluentBundle provided")
-  }
-  ```
-
-- [ ] **9.6** Locale change observer — reload bundles when Android locale changes
-  (defer; CompositionLocal + format helpers are enough for a first cut)
+- [x] **9.4** `fluent-compose`: `FluentBundleRegistry`, `LocalFluentBundles`,
+  `ProvideFluentFromAssets` (loads `assets/{basePath}/{locale}/{resourceId}.ftl`
+  with tag → language → base fallback), `fluentString` escape hatch.
+  **No** recommended `LocalizedText` — apps own `Text` / Material.
+- [x] **9.5** Codegen `generateComposeAccessors` → `remember{Bundle}Messages()`
+  only (reads registry; no per-message `@Composable` / `*Text` wrappers).
+- [x] **9.6** Locale hot-reload via `LocalConfiguration` inside
+  `ProvideFluentFromAssets` (system language or
+  `AppCompatDelegate.setApplicationLocales`).
+- [x] **9.6b** `examples/android-compose` validates Activity + multi-screen
+  call site. CI job builds library tests + `assembleDebug`.
 
 ### E. CLI (optional)
 

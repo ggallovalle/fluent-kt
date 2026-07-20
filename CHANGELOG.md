@@ -7,7 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-07-20
+
 ### Added
+- `fluent-compose` (Android Jetpack Compose, not published): `FluentBundleRegistry`,
+  `ProvideFluentFromAssets` / `LocalFluentBundles`, `AssetResourceManager`, and
+  `fluentString` escape hatch. Locale reloads from `LocalConfiguration`.
+- Codegen `generateComposeAccessors` → `remember{Bundle}Messages()` only (no
+  generated `*Text` composables). Gradle plugin wires Android sources via AGP
+  `androidComponents` / `addGeneratedSourceDirectory`.
+- `examples/android-compose` sample: assets under `i18n/{locale}/{bundle}/`,
+  Activity root provider, multi-screen NavHost using generated accessors.
 - `fluent-codegen` + `fluent-gradle-plugin` (`dev.kbroom.fluent`): multi-bundle
   FTL layout (`{locale}/{bundle}/**/*.ftl`), `fluentValidate` /
   `fluentGenerate` / `fluentScaffoldLocale`, typed `*Messages` /
@@ -43,6 +53,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   via `kotlinx-atomicfu` (replaces non-portable `synchronized` blocks).
 
 ### Changed
+- Kotlin JVM compilations use `jvmToolchain(17)` so artifacts stay loadable on
+  Java 17 / Android unit tests when Gradle itself runs on a newer JDK.
 - `FluentBundle` is now immutable by construction. Mutators moved to
   `FluentBundleBuilder` (notably `addResource`, `addResourceOverriding`,
   `addFunction`, `addBuiltins`, `setTransform`, `setUseIsolating`,
