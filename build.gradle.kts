@@ -1,3 +1,7 @@
+import java.net.URI
+import org.jetbrains.dokka.gradle.DokkaExtension
+import org.jetbrains.dokka.gradle.engine.parameters.VisibilityModifier
+
 // Top-level build file for fluent-kt
 plugins {
     kotlin("multiplatform") version "2.4.0" apply false
@@ -6,6 +10,25 @@ plugins {
     id("com.vanniktech.maven.publish") version "0.37.0" apply false
     id("de.infix.testBalloon") version "1.0.1-K2.4.0" apply false
     id("dev.detekt") version "2.0.0-alpha.5" apply false
+    id("org.jetbrains.dokka") version "2.2.0"
+}
+
+// Aggregate public API docs from every publishing module into one HTML site.
+dokka {
+    dokkaPublications.html {
+        moduleName.set("fluent-kt")
+        includes.from("README.md")
+    }
+}
+
+dependencies {
+    dokka(project(":fluent-syntax"))
+    dokka(project(":intl-memoizer"))
+    dokka(project(":fluent-bundle"))
+    dokka(project(":fluent-pseudo"))
+    dokka(project(":fluent-fallback"))
+    dokka(project(":fluent-resmgr"))
+    dokka(project(":fluent"))
 }
 
 // Apply the vanniktech publish plugin to every publishing module
@@ -15,6 +38,7 @@ plugins {
 subprojects {
     if (project.path != ":fluent-testing") {
         apply(plugin = "com.vanniktech.maven.publish")
+        apply(plugin = "org.jetbrains.dokka")
         extensions.configure(com.vanniktech.maven.publish.MavenPublishBaseExtension::class.java) {
             publishToMavenCentral()
             signAllPublications()
@@ -44,12 +68,23 @@ subprojects {
                 }
             }
         }
+        extensions.configure<DokkaExtension>("dokka") {
+            modulePath.set(project.name)
+            dokkaSourceSets.configureEach {
+                documentedVisibilities.set(setOf(VisibilityModifier.Public))
+                sourceLink {
+                    localDirectory.set(project.file("src"))
+                    remoteUrl.set(
+                        URI("https://github.com/ggallovalle/fluent-kt/tree/main/${project.name}/src"),
+                    )
+                    remoteLineSuffix.set("#L")
+                }
+            }
+        }
     }
 }
 
-tasks.register("clean", Delete::class) {
-    delete(rootProject.layout.buildDirectory)
-}
+// `clean` is provided by the base plugin once Dokka is applied at the root.
 
 subprojects {
     val libs = rootProject.extensions.getByType<VersionCatalogsExtension>().named("libs")
