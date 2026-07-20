@@ -46,7 +46,7 @@ Priority-ordered list of work items to reach a publishable v1.0.0.
   kotest-property exercise parser round-trip and bundle getMessage invariants;
   structural round-trip across curated fixtures; broken-Junk fixture covers
   err1/err3.
-- **Modules**: 8 (fluent-syntax, fluent-bundle, fluent-fallback, fluent-pseudo, fluent-resmgr, fluent-testing, fluent, intl-memoizer)
-- **Dead modules**: 4 (fluent-compiler, fluent-compiler-annotations, fluent-gradle-plugin, fluent-sample)
+- **Modules**: 10 (+ fluent-codegen, fluent-gradle-plugin; still: fluent-syntax, fluent-bundle, fluent-fallback, fluent-pseudo, fluent-resmgr, fluent-testing, fluent, intl-memoizer, benchmarks)
+- **Dead modules**: 3 (fluent-compiler, fluent-compiler-annotations, fluent-sample) — gradle plugin recreated
 - **Targets**: JVM + LinuxX64
 - **Lint**: detekt clean

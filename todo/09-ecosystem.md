@@ -12,12 +12,13 @@ CLI (optional).
 
 ### A. Gradle plugin (highest leverage)
 
-- [ ] **9.1** `fluent-gradle-plugin` module (deleted empty shell; recreate when needed):
-  - Task to validate FTL files in `src/main/resources`
-  - Task to generate Kotlin constants for message IDs
-  - Task to check for missing translations across locales
+- [x] **9.1** `fluent-codegen` + `fluent-gradle-plugin` (`dev.kbroom.fluent`):
+  - `fluentValidate` — Junk + cross-locale ID/arg parity
+  - `fluentGenerate` — `*Messages` / `*L10n` + KDoc, `FtlIds`, `*Resources`
+  - `fluentScaffoldLocale` — new locale tree from `defaultLocale`
+  - Multi-bundle layout `{locale}/{bundle}/**/*.ftl`
 
-  Shared logic here can later back a CLI if one is wanted.
+  Shared `fluent-codegen` can later back a CLI. Publishing the plugin is still open.
 
 ### B. Testing utilities
 

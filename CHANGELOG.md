@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `fluent-codegen` + `fluent-gradle-plugin` (`dev.kbroom.fluent`): multi-bundle
+  FTL layout (`{locale}/{bundle}/**/*.ftl`), `fluentValidate` /
+  `fluentGenerate` / `fluentScaffoldLocale`, typed `*Messages` /
+  `*L10n` wrappers with KDoc, `FtlIds`, and `*Resources` (`ResourceId`)
+  for fluent-fallback. Not published yet — apply from this repo /
+  included build.
 - `benchmarks` module with `kotlinx-benchmark` (JMH on JVM, linuxX64 target
   registered): parse / `tryNew` / serialize / `formatMessage` /
   `formatPattern` hot-path microbenchmarks. Run
@@ -53,8 +59,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 - `JvmConcurrentFluentBundle` (jvmMain).
-- `fluent-compiler/`, `fluent-compiler-annotations/`, `fluent-gradle-plugin/`,
-  `fluent-sample/` — empty shells never implemented.
+- `fluent-compiler/`, `fluent-compiler-annotations/`, `fluent-sample/` — empty
+  shells never implemented. (`fluent-gradle-plugin` was deleted then recreated
+  as AST-driven codegen; see Added.)
 - Unused `kotlinx-datetime` dependency across all modules.
 
 ### Fixed
