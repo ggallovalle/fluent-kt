@@ -1,8 +1,9 @@
 # 05 — CI/CD Pipeline
 
 **Priority: HIGH** — Tracks the verification + publishing pipeline.
-The verification gate runs on every push and PR via GitHub Actions;
-publishing is deferred until we're ready to cut a release.
+The verification gate runs on every push and PR via GitHub Actions.
+Snapshot publishing to Maven Central is live; the first non-SNAPSHOT
+release is still outstanding.
 
 ## Status
 
@@ -18,11 +19,15 @@ publishing is deferred until we're ready to cut a release.
 - **Dependabot**: configured (`.github/dependabot.yml`). Weekly digest
   for Gradle deps (grouped minor+patch into a single PR) and GitHub
   Actions versions.
-- **Group**: `io.github.ggallovalle` (the Sonatype namespace you have
-  auto-grant access to via GitHub login).
-- **Snapshot publishing**: ready. `VERSION_NAME=0.1.0-SNAPSHOT` in
+- **Group**: `io.github.ggallovalle` (Sonatype namespace granted via
+  GitHub login; Central Portal account is set up and verified).
+- **Maven Central credentials**: GitHub Actions secrets
+  (`MAVEN_CENTRAL_USERNAME`, `MAVEN_CENTRAL_PASSWORD`, `GPG_PRIVATE_KEY`,
+  `GPG_PASSPHRASE`) are configured and working.
+- **Snapshot publishing**: ✅ live. `VERSION_NAME=0.1.0-SNAPSHOT` in
   `gradle.properties` by default; override via `-PVERSION_NAME=…` or
-  the workflow's `version` input.
+  the workflow's `version` input. A SNAPSHOT has been published
+  successfully to Central.
 
 ## What works today
 
@@ -34,8 +39,8 @@ publishing is deferred until we're ready to cut a release.
 | Cached Gradle daemon / build cache | ✅ (via `gradle/actions/setup-gradle@v4`) |
 | Dependabot weekly digest | ✅ (`.github/dependabot.yml`) |
 | macOS / iOS / wasm CI matrix | ❌ — targets not in module config yet (todo/04 §4.13). Reopen this todo when targets are added. |
-| Snapshot publishing | ❌ |
-| Release publishing to Maven Central | ❌ |
+| Snapshot publishing | ✅ |
+| Release publishing to Maven Central | ❌ — first non-SNAPSHOT (`0.1.0`) not cut yet |
 
 ## Task status
 
@@ -51,20 +56,21 @@ publishing is deferred until we're ready to cut a release.
 - [x] **5.3** Cache Kotlin/Native compiler downloads: handled implicitly
   by Gradle's dependency cache (klibs land under `~/.gradle/caches`).
   No additional config needed.
-- [x] **5.4** Snapshot publishing: ready. Set `VERSION_NAME` via
-  `-PVERSION_NAME=…` or run the release workflow with the `version`
-  input. The vanniktech plugin handles in-memory GPG signing from env
-  vars (no keyring import step needed).
-- [x] **5.5** Release publishing: ready. Tag `v0.1.0` (or any `v*`) on
-  the commit you want to release; the workflow publishes the matching
-  artifact to Maven Central and creates a GitHub Release. CI secrets
-  needed (your naming, kept human-readable): `MAVEN_CENTRAL_USERNAME`,
-  `MAVEN_CENTRAL_PASSWORD`, `GPG_PRIVATE_KEY`, `GPG_PASSPHRASE`
-  (set at
-  <https://github.com/ggallovalle/fluent-kt/settings/secrets/actions>).
-  The workflow maps these to the vanniktech plugin's required names
-  (`ORG_GRADLE_PROJECT_mavenCentralUsername` etc.) so the secrets
-  themselves don't need to match the plugin's naming.
+- [x] **5.4** Snapshot publishing: done. A SNAPSHOT has been published
+  to Maven Central. Set `VERSION_NAME` via `-PVERSION_NAME=…` or run
+  the release workflow with the `version` input. The vanniktech plugin
+  handles in-memory GPG signing from env vars (no keyring import step
+  needed).
+- [x] **5.5** Release publishing: pipeline ready; first non-SNAPSHOT
+  not cut yet. Tag `v0.1.0` (or any `v*`) on the commit you want to
+  release; the workflow publishes the matching artifact to Maven
+  Central and creates a GitHub Release. CI secrets
+  (`MAVEN_CENTRAL_USERNAME`, `MAVEN_CENTRAL_PASSWORD`, `GPG_PRIVATE_KEY`,
+  `GPG_PASSPHRASE`) are set at
+  <https://github.com/ggallovalle/fluent-kt/settings/secrets/actions>
+  and validated by the successful SNAPSHOT publish. The workflow maps
+  these to the vanniktech plugin's required names
+  (`ORG_GRADLE_PROJECT_mavenCentralUsername` etc.).
 
 ### B. KMP target matrix
 
@@ -91,60 +97,29 @@ publishing is deferred until we're ready to cut a release.
 
 ## Section E: First-publish checklist
 
-The pipeline is configured. To go live, the maintainer (KBroom) needs
-to do the following — secrets and a one-time registration, not code:
+One-time setup and SNAPSHOT validation are done. Remaining work is
+cutting the first non-SNAPSHOT release.
 
-1. **Create a Central Portal account** at <https://central.sonatype.com>.
-   Sign in with the GitHub account tied to `ggallovalle`. Sonatype
-   auto-grants publishing access to the `io.github.ggallovalle`
-   namespace when you sign up with GitHub. Verify at
-   <https://central.sonatype.com> → user menu → "View Namespaces".
-
-2. **Generate a User Token** for publishing. Visit
-   <https://central.sonatype.com/account> → "User Token" section →
-   "Generate User Token". Save the username and password.
-
-3. **Export the GPG private key in armored form** so CI can sign:
-   ```bash
-   gpg --armor --export-secret-keys 86CDFCF086DCDECFBA8CE114581B64676B72F4EB > /tmp/gpg-private-key.asc
-   cat /tmp/gpg-private-key.asc
-   ```
-   Copy the entire block (including `-----BEGIN PGP PRIVATE KEY BLOCK-----`
-   and `-----END PGP PRIVATE KEY BLOCK-----`). This is the value for
-   `GPG_PRIVATE_KEY` in CI. The passphrase you set when generating the
-   key is `GPG_PASSPHRASE`. **Treat both as sensitive.**
-
-4. **Set four GitHub Actions secrets** at
-   <https://github.com/ggallovalle/fluent-kt/settings/secrets/actions>:
-   - `MAVEN_CENTRAL_USERNAME` — the user token username from step 2
-   - `MAVEN_CENTRAL_PASSWORD` — the user token password from step 2
-   - `GPG_PRIVATE_KEY` — the armored private key from step 3
-   - `GPG_PASSPHRASE` — the key passphrase
-
-5. **Test with a SNAPSHOT first.** From `main`:
-   ```bash
-   git tag v0.1.0-SNAPSHOT
-   git push origin v0.1.0-SNAPSHOT
-   ```
-   Watch the release workflow at
-   <https://github.com/ggallovalle/fluent-kt/actions>. The workflow
-   strips the `v` prefix and publishes `0.1.0-SNAPSHOT`. Once CI is
-   green, check <https://central.sonatype.com> → "Deployments" for
-   the artifact. SNAPSHOTs go to the snapshot staging repo and are
-   throwaway.
-
-6. **Tag the real `0.1.0` release** once `0.1.0-SNAPSHOT` validated:
-   ```bash
-   git tag v0.1.0
-   git push origin v0.1.0
-   ```
-   Watch CI. After Central validates the artifact, the workflow
-   creates a GitHub Release at the tag with auto-generated notes.
-
-7. **Once published, the version is immutable.** Central will not
-   delete or modify artifacts. If `0.1.0` ships with a typo, fix
-   forward with `0.1.1`. SNAPSHOTs are your safety net — use them
-   liberally.
+- [x] **E.1** Central Portal account at <https://central.sonatype.com>
+  (GitHub login as `ggallovalle`). Namespace `io.github.ggallovalle`
+  verified.
+- [x] **E.2** User Token generated for publishing.
+- [x] **E.3** GPG private key exported (armored) for in-memory CI signing.
+- [x] **E.4** Four GitHub Actions secrets set and working:
+  `MAVEN_CENTRAL_USERNAME`, `MAVEN_CENTRAL_PASSWORD`, `GPG_PRIVATE_KEY`,
+  `GPG_PASSPHRASE`.
+- [x] **E.5** SNAPSHOT publish succeeded (pipeline + credentials validated).
+- [ ] **E.6** Tag the real `0.1.0` release:
+  ```bash
+  git tag v0.1.0
+  git push origin v0.1.0
+  ```
+  Watch CI at <https://github.com/ggallovalle/fluent-kt/actions>.
+  After Central validates the artifact, the workflow creates a GitHub
+  Release at the tag with auto-generated notes.
+- [ ] **E.7** Remember: once published, the version is immutable.
+  Central will not delete or modify artifacts. If `0.1.0` ships with a
+  typo, fix forward with `0.1.1`. SNAPSHOTs remain the safety net.
 
 ### What the published artifacts look like
 

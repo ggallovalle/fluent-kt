@@ -1,104 +1,75 @@
 # 06 — Publishing & Packaging
 
-**Priority: MEDIUM** — Library cannot be consumed by other projects until published.
+**Priority: MEDIUM** — Snapshot publishing is live; first non-SNAPSHOT
+release and any packaging polish remain.
 
 ## Current state
 
-No publishing configuration. The project is a local build only.
+Publishing is configured via `com.vanniktech.maven.publish` (root
+`build.gradle.kts`) and `gradle.properties`. Central Portal account,
+GitHub Actions secrets, and a successful SNAPSHOT publish are done.
+See [05-ci-cd.md](05-ci-cd.md) §E for the remaining release steps.
+
+- **Group**: `io.github.ggallovalle`
+- **Default version**: `0.1.0-SNAPSHOT` (`VERSION_NAME` in
+  `gradle.properties`)
+- **Publishing modules**: all subprojects except `:fluent-testing`
+- **Targets published today**: JVM + linuxX64
 
 ## Tasks
 
 ### A. Maven coordinates
 
-- [ ] **6.1** Define Maven coordinates:
+- [x] **6.1** Maven coordinates defined:
   ```
-  Group:    dev.kbroom.fluent
-  Artifact: fluent-syntax, fluent-bundle, fluent-fallback, etc.
-  Version:  0.1.0-SNAPSHOT → 1.0.0
+  Group:    io.github.ggallovalle
+  Artifact: fluent, fluent-syntax, fluent-bundle, fluent-fallback,
+            fluent-pseudo, fluent-resmgr, intl-memoizer
+  Version:  0.1.0-SNAPSHOT → (pending) 0.1.0
   ```
+  Kotlin packages remain `dev.kbroom.fluent.*` (independent of Maven
+  group).
 
 ### B. Gradle publishing plugins
 
-- [ ] **6.2** Add `maven-publish` plugin to each module's `build.gradle.kts`:
-  ```kotlin
-  plugins {
-      kotlin("multiplatform")
-      `maven-publish`
-      signing
-  }
-  ```
-
-- [ ] **6.3** Configure POM metadata:
-  ```kotlin
-  publishing {
-      publications {
-          withType<MavenPublication> {
-              pom {
-                  name.set("fluent-bundle")
-                  description.set("Fluent message resolution for Kotlin Multiplatform")
-                  url.set("https://github.com/kbroom/fluent-kt")
-                  licenses { /* Apache-2.0 */ }
-                  developers { /* ... */ }
-              }
-          }
-      }
-  }
-  ```
+- [x] **6.2** `com.vanniktech.maven.publish` applied to every publishing
+  module from the root build (not hand-rolled `maven-publish` /
+  `signing` per module).
+- [x] **6.3** Shared POM metadata from `POM_*` in `gradle.properties`
+  (name, description, MIT license, developer, SCM).
 
 ### C. GPG signing
 
-- [ ] **6.4** Configure signing (required for Maven Central):
-  ```kotlin
-  signing {
-      // Uses gradle.properties: signing.keyId, signing.password, signing.secretKeyRingFile
-      sign(publishing.publications)
-  }
-  ```
+- [x] **6.4** In-memory GPG signing via vanniktech
+  (`signAllPublications()` + `signingInMemoryKey` /
+  `signingInMemoryKeyPassword` from CI secrets).
 
-### D. Sonatype/Maven Central
+### D. Sonatype / Maven Central
 
-- [ ] **6.5** Add Sonatype OSSRH plugin or use `io.github.gradle-nexus.publish-plugin`
-- [ ] **6.6** Configure repository URLs:
-  ```kotlin
-  repositories {
-      maven {
-          name = "sonatype"
-          url = uri("https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/")
-          credentials { /* from gradle.properties or env vars */ }
-      }
-  }
-  ```
+- [x] **6.5** Central Portal publishing via
+  `publishToMavenCentral()` (no legacy OSSRH staging plugin).
+- [x] **6.6** Credentials + namespace verified; SNAPSHOT upload
+  succeeded.
 
 ### E. GitHub Packages (alternative/snapshot)
 
-- [ ] **6.7** Configure GitHub Packages for SNAPSHOT versions:
-  ```kotlin
-  repositories {
-      maven {
-          name = "github"
-          url = uri("https://maven.pkg.github.com/kbroom/fluent-kt")
-          credentials {
-              username = System.getenv("GITHUB_ACTOR")
-              password = System.getenv("GITHUB_TOKEN")
-          }
-      }
-  }
-  ```
+- [ ] **6.7** GitHub Packages — **not needed**. Snapshots go to Maven
+  Central. Reopen only if a dual-repo setup is wanted later.
 
 ### F. KMP artifact naming
 
-- [ ] **6.8** Verify KMP artifact names follow conventions:
-  - `fluent-syntax-jvm`
-  - `fluent-syntax-linuxx64`
-  - `fluent-syntax-macosarm64`
-  - etc.
+- [x] **6.8** KMP artifact names follow conventions for current
+  targets (`*-jvm`, `*-linuxx64`). Additional platform suffixes land
+  when those targets are added (todo/04 §4.13).
 
 ### G. Version management
 
-- [ ] **6.9** Use a version plugin (e.g., `com.palantir.git-version`) or manual
-  `version` in `gradle.properties`
-- [ ] **6.10** Consider semantic versioning: `0.1.0` for initial release
+- [x] **6.9** Version via `VERSION_NAME` in `gradle.properties`,
+  overridable with `-PVERSION_NAME=…` or the release workflow.
+- [ ] **6.10** Cut first semantic release `0.1.0` (tag `v0.1.0`). See
+  [05-ci-cd.md](05-ci-cd.md) §E.6.
 
-## Estimated effort
+## Estimated effort remaining
 
-~1 day for A-F; ~0.5 day for G (versioning strategy).
+~0.5 day for the first non-SNAPSHOT release (tag + verify on Central +
+GitHub Release). Setup work in A–F is done.
