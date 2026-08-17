@@ -18,7 +18,7 @@ kotlin {
             implementation(kotlin("test"))
             implementation(project(":fluent-testing"))
             implementation("de.infix.testBalloon:testBalloon-framework-core:1.0.1-K2.4.0")
-            implementation("io.kotest:kotest-property:6.2.2")
+            implementation("io.kotest:kotest-property:6.2.4")
         }
         getByName("jvmTest") {
             dependencies {
