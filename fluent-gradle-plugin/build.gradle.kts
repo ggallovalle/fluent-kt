@@ -9,7 +9,7 @@ plugins {
 dependencies {
     implementation(project(":fluent-codegen"))
     implementation(project(":fluent-syntax"))
-    compileOnly("org.jetbrains.kotlin:kotlin-gradle-plugin:2.4.10")
+    compileOnly("org.jetbrains.kotlin:kotlin-gradle-plugin:2.4.20")
     compileOnly("com.android.tools.build:gradle:9.3.0")
     testImplementation(kotlin("test"))
     testImplementation("de.infix.testBalloon:testBalloon-framework-core:1.0.1-K2.4.0")

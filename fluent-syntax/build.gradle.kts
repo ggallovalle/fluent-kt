@@ -1,8 +1,8 @@
 description = "FTL (Fluent Translation List) parser and serializer for Kotlin Multiplatform"
 
 plugins {
-    kotlin("multiplatform") version "2.4.10"
-    kotlin("plugin.serialization") version "2.4.10"
+    kotlin("multiplatform") version "2.4.20"
+    kotlin("plugin.serialization") version "2.4.20"
     id("de.infix.testBalloon")
 }
 
@@ -18,7 +18,7 @@ kotlin {
             implementation(kotlin("test"))
             implementation(project(":fluent-testing"))
             implementation("de.infix.testBalloon:testBalloon-framework-core:1.0.1-K2.4.0")
-            implementation("io.kotest:kotest-property:6.2.2")
+            implementation("io.kotest:kotest-property:6.2.5")
         }
         getByName("jvmTest") {
             dependencies {
