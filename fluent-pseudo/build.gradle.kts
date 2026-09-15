@@ -1,8 +1,8 @@
 description = "Pseudolocalization transforms (Accented, Bidi, Long, Widened, Hidden) for catching hard-coded strings"
 
 plugins {
-    kotlin("multiplatform") version "2.4.10"
-    kotlin("plugin.serialization") version "2.4.10"
+    kotlin("multiplatform") version "2.4.20"
+    kotlin("plugin.serialization") version "2.4.20"
     id("de.infix.testBalloon")
 }
 
